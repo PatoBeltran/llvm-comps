@@ -108,11 +108,11 @@ int burm_file_numbers[] = {
 
 int burm_line_numbers[] = {
   /* 0 */  132,
-  /* 1 */  138,
-  /* 2 */  144,
-  /* 3 */  150,
-  /* 4 */  156,
-  /* 5 */  162,
+  /* 1 */  142,
+  /* 2 */  152,
+  /* 3 */  161,
+  /* 4 */  170,
+  /* 5 */  178,
 };
 
 #pragma GCC diagnostic push
@@ -302,7 +302,11 @@ int indent)
 
 
  
-        std::cout << "Add operation\n";
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+        std::cout << realIndent << "Add operation\n";
+        mem_action(_s->kids[0],indent+1);
+        rc_action(_s->kids[1],indent+1);
       
 }
   break;
@@ -311,7 +315,11 @@ int indent)
 
 
  
-        std::cout << "Move operation\n";
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+        std::cout << realIndent << "Move operation\n";
+        mem_action(_s->kids[0],indent+1);
+        rc_action(_s->kids[1],indent+1);
       
 }
   break;
@@ -334,7 +342,10 @@ int indent)
 
 
 
-      std::cout << "rc can be a mem\n";
+      std::string realIndent = "";
+      for (int i=0; i<indent; i++) realIndent += "  "; 
+      std::cout << realIndent << "rc can be a mem\n";
+      mem_action(_s,indent+1);
     
 }
   break;
@@ -343,7 +354,10 @@ int indent)
 
 
 
-      std::cout << "rc can be a const\n";
+      std::string realIndent = "";
+      for (int i=0; i<indent; i++) realIndent += "  "; 
+      std::cout << realIndent << "rc can be a const\n";
+      const_action(_s,indent+1);
     
 }
   break;
@@ -366,7 +380,9 @@ int indent)
 
 
 
-      std::cout << "Register or Memory\n";
+      std::string realIndent = "";
+      for (int i=0; i<indent; i++) realIndent += "  "; 
+      std::cout << realIndent << "Register or Memory\n";
     
 }
   break;
@@ -389,7 +405,9 @@ int indent)
 
 
 
-         std::cout << "Constant\n";
+         std::string realIndent = "";
+         for (int i=0; i<indent; i++) realIndent += "  "; 
+         std::cout << realIndent << "Constant\n";
        
 }
   break;
@@ -628,7 +646,7 @@ void CodeGenerator::generateCode(NODEPTR p) {
 	if (p != nullptr && burm_label(p) == 0)
 		std::cerr << "No match found for the node provided.\n";
 	else if (p != nullptr) {
-		stmt_action(p->getState(),0);
+		stmt_action(p->getState(),1);
 	}
 }
 

@@ -87,6 +87,8 @@ static int compileModule(char **argv, LLVMContext &Context) {
 }
 
 static void compileFunction(Function &func) {
+  std::string funcName(func.getName());
+  std::cout << funcName << ":\n";
   NODEPTR root = nullptr, kid = nullptr;
   std::vector<NODEPTR> *children = new std::vector<NODEPTR>();
   
@@ -101,7 +103,7 @@ static void compileFunction(Function &func) {
         children->push_back(kid);
         for (unsigned k = 0; k < inst.getNumOperands(); k++){
           Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
-          if (Constant::classof(v)) {
+          if (ConstantInt::classof(v)) {
             errs() << "T-constant\n";
             kid = new Node(CONST, nullptr, v);
             children->push_back(kid);
@@ -112,7 +114,7 @@ static void compileFunction(Function &func) {
       else if (StoreInst::classof(&inst)) {
         for (unsigned k = 0; k < inst.getNumOperands(); k++){
           Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
-          if (Constant::classof(v)) {
+          if (ConstantInt::classof(v)) {
             errs() << "S-constant\n";
             kid = new Node(CONST, nullptr, v);
           } else {
@@ -130,4 +132,5 @@ static void compileFunction(Function &func) {
       }
     }
   }
+  std::cout << "\n";
 }
