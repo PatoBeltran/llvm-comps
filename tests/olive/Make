@@ -1,0 +1,44 @@
+# -*- Fundamental -*-
+
+MODULE      = olive
+OWNER       = ashok
+HOME        = .
+YACC        = bison
+
+CFILES      = iburg.c x_arrayc.c x_arrayp.c code.c gram.y
+
+HFILES      = iburg.h code.h x_array.h tree.h centerline.h
+
+EXE_NAME    = olive
+BINDIR      = .
+
+DEPENDS     =
+
+# use gcc as ansi c compiler
+CC_SUN4     = gcc
+
+
+GENERICS    = x_array.gen hash.gen
+
+.SUFFIXES: .c .impl .h .int
+
+.int.h:
+	m4 - $(GENERICS) $*.int >$*.h
+
+.impl.c:
+        m4 - $(GENERICS) $*.impl >$*.c
+
+$(LIBDIR)/$(MODULE)$(TYPE)/hash.o: hash.h hash.c
+
+my_depend:
+	$(MAKE) $(HDR) $(SRC) $(SRC_TEST)
+	$(MAKE) depend
+
+# custom yacc stuff
+gram.c: gram.y
+	$(YACC) -o gram.c gram.y
+
+my_test:
+	../bin-$(TARGET_ARCH)/olive -I sample4.brg
+	gcc -g sample4.c
+	a.out

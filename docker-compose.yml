@@ -3,6 +3,7 @@ services:
   llvm:
     build: .
     volumes:
+      - ./tests:/var/tests
       - ./src:/var/llvm
       - ./obj:/var/Debug+Asserts
     command: ['/bin/bash']

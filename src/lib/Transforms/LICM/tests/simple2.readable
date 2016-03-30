@@ -1,0 +1,48 @@
+; ModuleID = 'simple2.cpp'
+target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-apple-macosx10.11.0"
+
+; Function Attrs: norecurse nounwind ssp uwtable
+define i32 @main() #0 {
+entry:
+  %retval = alloca i32, align 4
+  %a = alloca i32, align 4
+  %b = alloca i32, align 4
+  %x = alloca i32, align 4
+  %y = alloca i32, align 4
+  %z = alloca i32, align 4
+  store i32 0, i32* %retval, align 4
+  store i32 0, i32* %a, align 4
+  store i32 0, i32* %b, align 4
+  store i32 2, i32* %x, align 4
+  store i32 3, i32* %y, align 4
+  store i32 10, i32* %z, align 4
+  br label %do.body
+
+do.body:                                          ; preds = %do.cond, %entry
+  %0 = load i32, i32* %x, align 4
+  %1 = load i32, i32* %z, align 4
+  %add = add nsw i32 %0, %1
+  store i32 %add, i32* %a, align 4
+  store i32 11, i32* %b, align 4
+  %2 = load i32, i32* %y, align 4
+  %inc = add nsw i32 %2, 1
+  store i32 %inc, i32* %y, align 4
+  br label %do.cond
+
+do.cond:                                          ; preds = %do.body
+  %3 = load i32, i32* %y, align 4
+  %cmp = icmp slt i32 %3, 7
+  br i1 %cmp, label %do.body, label %do.end
+
+do.end:                                           ; preds = %do.cond
+  ret i32 0
+}
+
+attributes #0 = { norecurse nounwind ssp uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="core2" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+ssse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
+
+!0 = !{i32 1, !"PIC Level", i32 2}
+!1 = !{!"clang version 3.9.0 (trunk 261153) (llvm/trunk 261151)"}
