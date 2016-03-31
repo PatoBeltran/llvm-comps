@@ -6,11 +6,13 @@
 #include <stdio.h>
 #include <vector>
 
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Value.h"
+
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
 
 /** ================== Tree ==================== **/
 
@@ -98,12 +100,11 @@ static COST COST_ZERO     = COST(0);
 
 /** ================ Operations ================ **/
 enum {
-  BINARY_OP=0,    //Binary operation
-  CONST=1,        //Constant
-  ADD=2,          //Addition
-  MOV=3,          //Move
-  ADDR=4,         //Address
-  STORE=5
+  CONST=0,        //Constant
+  ADD=1,          //Addition
+  MOV=2,          //Move
+  ADDR=3,         //Address
+  RET=4
 };
 
 /** =========================================== **/
@@ -119,12 +120,12 @@ void burm_trace(NODEPTR node, int eRuleNo, COST cost);
 //You need to pass in the necessary info (e.g. registers, memory locations)
 // to the action call when you call it to generate code
 %}
-%term CONST=1 BINARY_OP=0 ADD=2 MOV=3 ADDR=4
-%term STORE=5
+%term CONST=0 ADD=1 MOV=2 ADDR=3
+%term RET=4
 %declare<void> stmt<int indent>;
-%declare<void> rc<int indent>;
-%declare<void> mem<int indent>;
-%declare<void> const<int indent>;
+%declare<void> rc;
+%declare<void> mem;
+%declare<void> const;
 %%
 
 stmt: ADD(mem, rc)
@@ -132,9 +133,11 @@ stmt: ADD(mem, rc)
       = { 
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
-        std::cout << realIndent << "Add operation\n";
-        $action[2](indent+1);
-        $action[3](indent+1);
+        std::cout << realIndent << "add ";
+        $action[2]();
+        std::cout << ", ";
+        $action[3]();
+        std::cout << "\n";
       };
 
 stmt: MOV(mem, rc)
@@ -142,43 +145,51 @@ stmt: MOV(mem, rc)
       = { 
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
-        std::cout << realIndent << "Move operation\n";
-        $action[2](indent+1);
-        $action[3](indent+1);
+        std::cout << realIndent << "mov ";
+        $action[2]();
+        std::cout << ", ";
+        $action[3]();
+        std::cout << "\n";
+      };
+
+stmt: RET(rc)
+      { $cost[0].setCost($cost[2].getCost()); }
+      = { 
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  ";
+        std::cout << realIndent << "mov eax, ";
+        $action[2]();
+        std::cout << "\n";
+        std::cout << realIndent << "mov esp, ebp\n"; 
+        std::cout << realIndent << "pop ebp\n";
+        std::cout << realIndent << "ret\n";
       };
 
 rc: mem
     { $cost[0].setCost($cost[1].getCost()); }
     = {
-      std::string realIndent = "";
-      for (int i=0; i<indent; i++) realIndent += "  "; 
-      std::cout << realIndent << "rc can be a mem\n";
-      $action[1](indent+1);
+      $action[1]();
     };
 
 rc: const
     { $cost[0].setCost($cost[1].getCost()); }
     = {
-      std::string realIndent = "";
-      for (int i=0; i<indent; i++) realIndent += "  "; 
-      std::cout << realIndent << "rc can be a const\n";
-      $action[1](indent+1);
+      $action[1]();
     };
 
 mem: ADDR
     { $cost[0].setCost(1); }
     = {
-      std::string realIndent = "";
-      for (int i=0; i<indent; i++) realIndent += "  "; 
-      std::cout << realIndent << "Register or Memory\n";
+      std::cout << "addr";
     };
 
 const: CONST
        { $cost[0].setCost(1); }
        = {
-         std::string realIndent = "";
-         for (int i=0; i<indent; i++) realIndent += "  "; 
-         std::cout << realIndent << "Constant\n";
+         if (llvm::ConstantInt::classof($0->getValue())) {
+           const llvm::ConstantInt *CI = llvm::cast<llvm::ConstantInt>($0->getValue());
+           std::cout << CI->getValue().getSExtValue();
+         }
        };
 %%
 

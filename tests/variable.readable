@@ -1,9 +1,9 @@
 inter:
-  Move operation
-    Register or Memory
-    rc can be a const
-      Constant
-  Move operation
-    Register or Memory
-    rc can be a const
-      Constant
+  push ebp
+  mov ebp, esp
+  mov addr, 10
+  mov eax, addr
+  mov esp, ebp
+  pop ebp
+  ret
+

@@ -11,11 +11,13 @@
 #include <stdio.h>
 #include <vector>
 
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Value.h"
+
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
 
 /** ================== Tree ==================== **/
 
@@ -103,12 +105,11 @@ static COST COST_ZERO     = COST(0);
 
 /** ================ Operations ================ **/
 enum {
-  BINARY_OP=0,    //Binary operation
-  CONST=1,        //Constant
-  ADD=2,          //Addition
-  MOV=3,          //Move
-  ADDR=4,         //Address
-  STORE=5
+  CONST=0,        //Constant
+  ADD=1,          //Addition
+  MOV=2,          //Move
+  ADDR=3,         //Address
+  RET=4
 };
 
 /** =========================================== **/
@@ -124,11 +125,10 @@ void burm_trace(NODEPTR node, int eRuleNo, COST cost);
 //You need to pass in the necessary info (e.g. registers, memory locations)
 // to the action call when you call it to generate code
 #define CONST 0
-#define BINARY_OP 1
-#define ADD 2
-#define MOV 3
-#define ADDR 4
-#define STORE 5
+#define ADD 1
+#define MOV 2
+#define ADDR 3
+#define RET 4
 
 struct burm_state {
   int op;

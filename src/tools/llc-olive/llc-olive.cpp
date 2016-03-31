@@ -4,7 +4,6 @@
 #include "llvm/CodeGen/MIRParser/MIRParser.h"
 #include "llvm/IRReader/IRReader.h"
 
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LLVMContext.h"
 
@@ -87,8 +86,16 @@ static int compileModule(char **argv, LLVMContext &Context) {
 }
 
 static void compileFunction(Function &func) {
+  bool hasHadReturn = false;
+  
+  //Print frame
   std::string funcName(func.getName());
   std::cout << funcName << ":\n";
+  std::cout << "  push ebp\n";
+  std::cout << "  mov ebp, esp\n";
+  //sub   esp, N //Grow the stack by N bytes to reserve space for local variables
+  
+  //Build Expression Tree
   NODEPTR root = nullptr, kid = nullptr;
   std::vector<NODEPTR> *children = new std::vector<NODEPTR>();
   
@@ -99,17 +106,21 @@ static void compileFunction(Function &func) {
       children->clear();
 
       if (TerminatorInst::classof(&inst)) {
-        kid = new Node(ADDR, nullptr, nullptr);
-        children->push_back(kid);
         for (unsigned k = 0; k < inst.getNumOperands(); k++){
           Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
+          errs() << std::string(v->getName()) << "\n";
           if (ConstantInt::classof(v)) {
             errs() << "T-constant\n";
             kid = new Node(CONST, nullptr, v);
             children->push_back(kid);
+          } else {
+            errs() << "T-variable\n";
+            kid = new Node(ADDR, nullptr, v);
+            children->push_back(kid);
           }
         }
-        root = new Node(MOV, children, &inst); 
+        hasHadReturn = true;
+        root = new Node(RET, children, &inst); 
       }
       else if (StoreInst::classof(&inst)) {
         for (unsigned k = 0; k < inst.getNumOperands(); k++){
@@ -125,12 +136,20 @@ static void compileFunction(Function &func) {
         }
         root = new Node(MOV, children, &inst);
       }
+      
       if (root != nullptr) {
         CodeGenerator::generateCode(root);
         delete root;
         root = nullptr;
       }
     }
+  }
+  
+  if (!hasHadReturn) {
+    //Function epilog for void functions
+    std::cout << "  mov esp, ebp\n";
+    std::cout << "  pop ebp\n";
+    std::cout << "  ret\n";
   }
   std::cout << "\n";
 }
