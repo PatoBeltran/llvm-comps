@@ -85,6 +85,27 @@ static int compileModule(char **argv, LLVMContext &Context) {
   return 0;
 }
 
+std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v) {
+  NODEPTR kid = nullptr;
+  int nodeType = -1;
+  std::vector<NODEPTR> *subtree = new std::vector<NODEPTR>();
+  if (Instruction::classof(&v)) {
+    Instruction &inst = cast<Instruction>(v);
+    for (unsigned k = 0; k < inst.getNumOperands(); k++){
+      nodeType = -1;
+      Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
+      if (ConstantInt::classof(v)) {
+        nodeType = CONST;
+      } else {
+        nodeType = ADDR;
+      }
+      kid = new Node(nodeType, nullptr, v);
+      subtree->push_back(kid);
+    }
+  }
+  return subtree;
+}
+
 static void compileFunction(Function &func) {
   bool hasHadReturn = false;
   
@@ -96,55 +117,30 @@ static void compileFunction(Function &func) {
   //sub   esp, N //Grow the stack by N bytes to reserve space for local variables
   
   //Build Expression Tree
-  NODEPTR root = nullptr, kid = nullptr;
-  std::vector<NODEPTR> *children = new std::vector<NODEPTR>();
-  
+  NODEPTR root = nullptr;
+  std::vector<NODEPTR> *children = nullptr;
+  int rootType = -1;
   for (Function::iterator bb = func.begin(), be = func.end(); bb != be; ++bb) {
     BasicBlock &BB = *bb;
     for (BasicBlock::iterator i = BB.begin(), ie = BB.end(); i != ie; ++i) {
       Instruction &inst = *i;
-      children->clear();
-
-      if (TerminatorInst::classof(&inst)) {
-        for (unsigned k = 0; k < inst.getNumOperands(); k++){
-          Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
-          errs() << std::string(v->getName()) << "\n";
-          if (ConstantInt::classof(v)) {
-            errs() << "T-constant\n";
-            kid = new Node(CONST, nullptr, v);
-            children->push_back(kid);
-          } else {
-            errs() << "T-variable\n";
-            kid = new Node(ADDR, nullptr, v);
-            children->push_back(kid);
-          }
-        }
+      rootType = -1;
+      children = buildSubtreeForInstruction(inst);
+      if (ReturnInst::classof(&inst)) {
         hasHadReturn = true;
-        root = new Node(RET, children, &inst); 
+        rootType = RET;
+      } else if (StoreInst::classof(&inst)) {
+        rootType = MOV;
       }
-      else if (StoreInst::classof(&inst)) {
-        for (unsigned k = 0; k < inst.getNumOperands(); k++){
-          Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
-          if (ConstantInt::classof(v)) {
-            errs() << "S-constant\n";
-            kid = new Node(CONST, nullptr, v);
-          } else {
-            errs() << "S-variable\n";
-            kid = new Node(ADDR, nullptr, v);
-          }
-          children->push_back(kid);
-        }
-        root = new Node(MOV, children, &inst);
-      }
-      
-      if (root != nullptr) {
+      if (rootType != -1) {
+        root = new Node(rootType, children, &inst);
         CodeGenerator::generateCode(root);
         delete root;
         root = nullptr;
       }
     }
   }
-  
+
   if (!hasHadReturn) {
     //Function epilog for void functions
     std::cout << "  mov esp, ebp\n";
