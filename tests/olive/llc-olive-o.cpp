@@ -103,13 +103,13 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  139,
-  /* 1 */  151,
-  /* 2 */  163,
-  /* 3 */  176,
-  /* 4 */  182,
-  /* 5 */  188,
-  /* 6 */  194,
+  /* 0 */  447,
+  /* 1 */  459,
+  /* 2 */  471,
+  /* 3 */  484,
+  /* 4 */  490,
+  /* 5 */  496,
+  /* 6 */  502,
 };
 
 #pragma GCC diagnostic push
@@ -333,11 +333,11 @@ int indent)
  
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  ";
-        std::cout << realIndent << "mov eax, ";
+        std::cout << realIndent << "mov %eax, ";
         rc_action(_s->kids[0]);
         std::cout << "\n";
-        std::cout << realIndent << "mov esp, ebp\n"; 
-        std::cout << realIndent << "pop ebp\n";
+        std::cout << realIndent << "mov %esp, %ebp\n"; 
+        std::cout << realIndent << "pop %ebp\n";
         std::cout << realIndent << "ret\n";
       
 }
@@ -389,7 +389,7 @@ void mem_action(struct burm_state *_s)
 
 
 
-      std::cout << "addr";
+      std::cout << _s->node->getLocationForNode();
     
 }
   break;
@@ -655,7 +655,7 @@ void CodeGenerator::generateCode(NODEPTR p) {
 	if (p != nullptr && burm_label(p) == 0)
 		std::cerr << "No match found for the node provided.\n";
 	else if (p != nullptr) {
-		stmt_action(p->getState(),1);
+		stmt_action(p->getState(), 1);
 	}
 }
 
@@ -668,5 +668,3 @@ int OP_LABEL(NODEPTR node) {
 
 void burm_trace(NODEPTR node, int eRuleNo, COST cost){
 }
-
-
