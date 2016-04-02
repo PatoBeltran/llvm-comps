@@ -5,9 +5,15 @@
 #include <string>
 #include <stdio.h>
 #include <vector>
+#include <set>
+#include <climits>
+
+#include "llvm/Analysis/LoopInfo.h"
 
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
+
 #include "llvm/IR/Value.h"
 
 #include "llvm/Support/Debug.h"
