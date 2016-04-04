@@ -1,9 +1,5 @@
-inter:
-  push %ebp
-  mov %ebp, %esp
-  mov %rax, 10
-  mov %eax, %rax
-  mov %esp, %ebp
-  pop %ebp
+_inter:
+  mov %rbx, 10
+  mov %rax, %rbx
   ret
 

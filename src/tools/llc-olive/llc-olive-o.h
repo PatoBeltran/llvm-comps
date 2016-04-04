@@ -41,20 +41,17 @@ public:
 class Spill : public Location {
   const unsigned SUPPORTED_OFFSET_DATATYPE = 8; 
   int _offset;
-  bool _param;
 public:
-  Spill(int offset, bool param) : 
+  Spill(int offset) : 
   Location(SPILL),
-  _offset(SUPPORTED_OFFSET_DATATYPE*offset), 
-  _param(param) 
+  _offset(SUPPORTED_OFFSET_DATATYPE*offset) 
   { }
 
   static bool classof(Location *l) { return l->isTypeOfClass(SPILL); }
   static bool classof(Location l) { return l.isTypeOfClass(SPILL); }
   int getOffset() { return _offset / SUPPORTED_OFFSET_DATATYPE; }
   std::string getName() {
-    int mult = _param ? 1 : -1;
-    return (mult*_offset)+"(%rbp)";
+    return (_offset)+"(%rbp)";
   }
 };
 
@@ -145,17 +142,15 @@ class RegisterAllocator {
     }
   }
 
-  int getNextSpillOffset(bool param) {
-    int currentMaxOffset = 0, currentMinOffset = 0;
+  int getNextSpillOffset() {
+    int currentMaxOffset = 0; 
     for(auto it = _currentLocations.begin(); it != _currentLocations.end(); ++it) {
       if (Spill::classof(&(*(it->second)))) {
         int offset = ((Spill *)it->second)->getOffset();
         if (currentMaxOffset < offset) currentMaxOffset = offset;
-        if (currentMinOffset > offset) currentMinOffset = offset;
       }
     }
-    if (param) return currentMaxOffset++;
-    return currentMinOffset--;
+    return currentMaxOffset++;
   }
 
   void setLastIntervalFrom(const llvm::Value *v, int start) {
@@ -179,9 +174,9 @@ class RegisterAllocator {
     }
   }
 
-  void spillAtInterval(LifeInterval *li, bool param) {
+  void spillAtInterval(LifeInterval *li) {
     LifeInterval *spill = _active.back();
-    Spill *sp = new Spill(getNextSpillOffset(param), param);
+    Spill *sp = new Spill(getNextSpillOffset());
     
     if (spill->getEnd() > li->getEnd()) {
       Register *r = (Register *)_currentLocations[spill->getValue()];
@@ -196,14 +191,12 @@ class RegisterAllocator {
     }
   }
   
-  void linearScanForValue(const llvm::Value *v, bool param) {
-    std::cerr << "5\n";
+  void linearScanForValue(const llvm::Value *v) {
     if (_unhandledLifeIntervals.find(v) != _unhandledLifeIntervals.end()) {
-      std::cerr << "6\n";
       LifeInterval *li = _unhandledLifeIntervals[v];
       expireOldIntervals(li);
       if (_active.size() >= _num_regs) {
-        spillAtInterval(li, param);
+        spillAtInterval(li);
       } else if(freeRegisters.size() > 0) {
         Register *r = freeRegisters.at(0);
         freeRegisters.erase( freeRegisters.begin() );
@@ -226,16 +219,12 @@ public:
     _instructionLocation[inst] = loc;
   }
 
-  std::string getLocationNameForValue(const llvm::Value *v, bool param=false) {
-    std::cerr << "1\n";
+  std::string getLocationNameForValue(const llvm::Value *v) {
     if (_currentLocations.find(v) != _currentLocations.end()) {
-      std::cerr << "2\n";
       return _currentLocations[v]->getName();
     }
-    std::cerr << "3\n";
-    linearScanForValue(v, param);
-    std::cerr << "4\n";
-    return getLocationNameForValue(v, param);
+    linearScanForValue(v);
+    return getLocationNameForValue(v);
   }
 
   void buildIntervalsForFunction(llvm::Function &f) {
@@ -345,10 +334,9 @@ public:
   void setOpType(int opt) { _opType = opt; }
   bool isLeaf() { return _num_kids == 0; }
   std::string getMemVal() { return _mem_val;}
-  void setMemVal(bool getRegister, std::string val = "", bool param=false) {
+  void setMemVal(bool getRegister, std::string val = "") {
     if (getRegister) {
-      std::cerr << "0\n";
-      _mem_val = _ra->getLocationNameForValue(_value, param);
+      _mem_val = _ra->getLocationNameForValue(_value);
       return;
     } else {
       _mem_val = val;
@@ -394,7 +382,10 @@ enum {
   STORE,
   OP,
   ADD,
-  MUL
+  MUL,
+  SUB,
+  DIV,
+  REM
 };
 
 /** =========================================== **/
@@ -414,8 +405,6 @@ void burm_trace(NODEPTR node, int eRuleNo, COST cost);
 #define RET 2
 #define STORE 3
 #define OP 4
-#define ADD 5
-#define MUL 6
 
 struct burm_state {
   int op;

@@ -75,8 +75,6 @@ char burm_arity[] = {
   1,  /* 2=RET */
   2,  /* 3=STORE */
   2,  /* 4=OP */
-  0,  /* 5=ADD */
-  0,  /* 6=MUL */
 };
 
 std::string burm_opname[] = {
@@ -85,8 +83,6 @@ std::string burm_opname[] = {
   /* 2 */  "RET",
   /* 3 */  "STORE",
   /* 4 */  "OP",
-  /* 5 */  "ADD",
-  /* 6 */  "MUL",
 };
 
 
@@ -126,18 +122,18 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  418,
-  /* 1 */  424,
-  /* 2 */  436,
-  /* 3 */  448,
-  /* 4 */  460,
-  /* 5 */  475,
-  /* 6 */  493,
-  /* 7 */  508,
-  /* 8 */  530,
-  /* 9 */  554,
-  /* 10 */  578,
-  /* 11 */  584,
+  /* 0 */  409,
+  /* 1 */  415,
+  /* 2 */  427,
+  /* 3 */  439,
+  /* 4 */  451,
+  /* 5 */  466,
+  /* 6 */  484,
+  /* 7 */  499,
+  /* 8 */  521,
+  /* 9 */  545,
+  /* 10 */  569,
+  /* 11 */  575,
 };
 
 #pragma GCC diagnostic push
@@ -445,7 +441,7 @@ int indent)
 
         var_action(_s->kids[0]);
         var_action(_s->kids[1]);
-        //_s->node->setMemVal(true);        
+        _s->node->setMemVal(true);        
 
         std::string newReg = _s->node->getMemVal();
         std::string firstVal = _s->kids[0]->node->getMemVal();
@@ -454,8 +450,8 @@ int indent)
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
 
-        std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
         std::cout << realIndent << "mov " << newReg << ", " << secondVal << "\n";
+        std::cout << realIndent << "mov " << firstVal << ", " << newReg << "\n";
       
 }
   break;
@@ -794,22 +790,6 @@ burm_trace(burm_np, 7, c);         s->cost[burm_op_NT] = c ;
         burm_closure_op(s, c );
       }
     }
-    break;
-  case 5:		/* ADD */
-    s=burm_alloc_state(u,op,arity);
-    SET_STATE(u,s);
-    k=s->kids;
-    children=GET_KIDS(u);
-    for(i=0;i<arity;i++)
-      k[i]=burm_label1(children[i]);
-    break;
-  case 6:		/* MUL */
-    s=burm_alloc_state(u,op,arity);
-    SET_STATE(u,s);
-    k=s->kids;
-    children=GET_KIDS(u);
-    for(i=0;i<arity;i++)
-      k[i]=burm_label1(children[i]);
     break;
   default:
     burm_assert(0, PANIC("Bad operator %d in burm_state\n", op));

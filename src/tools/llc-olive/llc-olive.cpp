@@ -60,26 +60,16 @@ static int compileModule(char **argv, LLVMContext &Context) {
   std::streambuf *coutbuf = std::cout.rdbuf();
   std::cout.rdbuf(of.rdbuf());
 
-  //Loop through global variables
+  //TODO: Loop through global variables
   //  for (Module::const_global_iterator I = M->global_begin(), E = M->global_end();
   //      I != E; ++I) {
   //  }
 
   RegisterAllocator *ra = setLocationsToInstructionsInModule(M.get());
-  for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I) {
+  for (auto I = M->rbegin(), E = M->rend(); I != E; ++I) {
     compileFunction(*I, ra);
   }
-
-  //Loop through aliases
-  //  for (Module::const_alias_iterator I = M->alias_begin(), E = M->alias_end();
-  //        I != E; ++I) {
-  //  }
-
-  //Loop through named metadata
-  //  for (Module::const_named_metadata_iterator I = M->named_metadata_begin(),
-  //          E = M->named_metadata_end(); I != E; ++I) {
-  //  }
-
+  
   std::cout.rdbuf(coutbuf);
   of.close();
   return 0;
@@ -117,11 +107,14 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
         switch (op) {
           case llvm::Instruction::Add: nodeOpType = ADD; break;
           case llvm::Instruction::Mul: nodeOpType = MUL; break;
+          case llvm::Instruction::Sub: nodeOpType = SUB; break;
+          case llvm::Instruction::UDiv: nodeOpType = DIV; break;
+          case llvm::Instruction::URem: nodeOpType = REM; break;
         }
         children = buildSubtreeForInstruction(*v, ra);
+        kid = new Node(nodeType, children, v, ra, nodeOpType);
+        subtree->push_back(kid);
       } 
-      kid = new Node(nodeType, children, v, ra, nodeOpType);
-      subtree->push_back(kid);
     }
   }
   return subtree;
@@ -163,9 +156,7 @@ void printDebugTree(Node *p, int indent=0) {
 }
 
 static void compileFunction(Function &func, RegisterAllocator *ra) {
-  bool hasHadReturn = false;
-
-  //Function Prologue
+  //Function name label
   std::string funcName(func.getName());
   std::cout << "_" << funcName << ":\n";
 
@@ -174,6 +165,14 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
   std::vector<NODEPTR> *children = nullptr;
   int rootType = -1;
   NODEPTR root = nullptr;
+  
+  Function::ArgumentListType &args = func.getArgumentList();
+  std::set<Value *>arguments;
+  for (auto a = args.begin(); a != args.end(); ++a) {
+    Value &vv = *a;
+    arguments.insert(&vv);
+  }
+
   //Build Expression Tree
   for (auto bb = func.begin(), be = func.end(); bb != be; ++bb) {
     BasicBlock &BB = *bb;
@@ -181,15 +180,20 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
       Instruction &inst = *i;
       rootType = -1;
       children = buildSubtreeForInstruction(inst, ra);
+      Value *v = nullptr;
       if (StoreInst::classof(&inst)) {
-        rootType = STORE;
+        v = ((StoreInst *)&inst)->getValueOperand();
+        // If it's a local variable (or intermediate value)
+        if (arguments.find(v) == arguments.end()) {
+          rootType = STORE;
+        }
       }
       else if (ReturnInst::classof(&inst)) {
         rootType = RET;
-        hasHadReturn = true;
+        v = &inst;
       }
       if (rootType != -1) {
-        root = new Node(rootType, children, &inst, ra);
+        root = new Node(rootType, children, v, ra);
 
         //TODO: Delete when not needed
         errs()<<"\n";
@@ -200,12 +204,6 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
         root = nullptr;
       }
     }
-  }
-
-  //TODO: Support void functions
-  if (!hasHadReturn) {
-    //Function epilogue for void functions
-    std::cout << "  ret\n";
   }
   std::cout << "\n";
 }
