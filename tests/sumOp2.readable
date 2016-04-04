@@ -1,0 +1,4 @@
+_inter:
+  mov %rax, 23
+  ret
+

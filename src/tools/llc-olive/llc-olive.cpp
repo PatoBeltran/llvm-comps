@@ -95,12 +95,7 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
         kid = new Node(CONST, nullptr, v, ra);
         subtree->push_back(kid);
         continue;
-      } else if (AllocaInst::classof(v)) {
-        kid = new Node(VAR, nullptr, v, ra);
-        subtree->push_back(kid);
-        continue;
       }
-
       if (BinaryOperator::classof(v)) {
         unsigned op = ((BinaryOperator*)v)->getOpcode();
         nodeType = OP;
@@ -114,7 +109,10 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
         children = buildSubtreeForInstruction(*v, ra);
         kid = new Node(nodeType, children, v, ra, nodeOpType);
         subtree->push_back(kid);
-      } 
+      } else {
+        kid = new Node(VAR, nullptr, v, ra);
+        subtree->push_back(kid);
+      }
     }
   }
   return subtree;
