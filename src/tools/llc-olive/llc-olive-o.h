@@ -26,51 +26,35 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Casting.h"
 
-/** ================ Operations ================ **/
-enum {
-  CONST=0,        //Constant
-  ADD=1,          //Addition
-  MOV=2,          //Move
-  ADDR=3,         //Address
-  RET=4
-};
-
 /** ============= Helpers ===================== **/
 
 class Location {
 protected:
-  enum {
-    REGISTER,
-    SPILL
-  };
-  
+  enum { REGISTER, SPILL };
   int _locationType;
   Location(int type) : _locationType(type) { }
-  
 public:
-  bool isTypeOfClass(int type) {
-    return _locationType == type;
-  }
-
+  bool isTypeOfClass(int type) { return _locationType == type; }
   virtual std::string getName() { return ""; };
 };
 
 class Spill : public Location {
   const unsigned SUPPORTED_OFFSET_DATATYPE = 8; 
   int _offset;
-
+  bool _param;
 public:
-  Spill(int offset) : Location(SPILL), _offset(SUPPORTED_OFFSET_DATATYPE*offset) { }
+  Spill(int offset, bool param) : 
+  Location(SPILL),
+  _offset(SUPPORTED_OFFSET_DATATYPE*offset), 
+  _param(param) 
+  { }
 
   static bool classof(Location *l) { return l->isTypeOfClass(SPILL); }
   static bool classof(Location l) { return l.isTypeOfClass(SPILL); }
-
-  int getOffset() {
-    return _offset / SUPPORTED_OFFSET_DATATYPE;
-  }
-
+  int getOffset() { return _offset / SUPPORTED_OFFSET_DATATYPE; }
   std::string getName() {
-    return _offset+"(%esp)";
+    int mult = _param ? 1 : -1;
+    return (mult*_offset)+"(%rbp)";
   }
 };
 
@@ -78,8 +62,8 @@ class Register : public Location {
   int _type;
 public:
   enum {
-    RAX=0, RBX=1, RCX=2, RDX=3, RDI=4, RSI=5,
-    R8=6, R9=7, R10=8, R11=9, R12=10, R13=11, R14=12, R15=13
+    RBX=0, RCX=1, RDX=2, RDI=3, RSI=4,
+    R8=5, R9=6, R10=7, R11=8, R12=9, R13=10, R14=11, R15=12
   };
   Register(int type) : Location(REGISTER), _type(type) { }
 
@@ -89,7 +73,6 @@ public:
   int getType() { return _type; };
   std::string getName() {
     switch (_type) {
-      case RAX: return "%rax";
       case RBX: return "%rbx";
       case RCX: return "%rcx";
       case RDX: return "%rdx";
@@ -131,7 +114,6 @@ public:
 
   void addRange(int start, int end) {
     if (start > end) return;
-
     if (start < _interval.first) _interval.first = start;
     if (end > _interval.second) _interval.second = end;
   }
@@ -139,17 +121,12 @@ public:
   static bool compareStart(LifeInterval *a, LifeInterval *b) { return a->getStart() < b->getStart(); }
   static bool compareEnd(LifeInterval *a, LifeInterval *b) { return b->getEnd() < b->getEnd(); }
 
-  bool operator<(const LifeInterval& b) {
-    return _interval.first < b.getStart();
-  }
-
-  bool operator>(const LifeInterval& b) {
-    return _interval.first > b.getStart();    
-  }
+  bool operator<(const LifeInterval& b) { return _interval.first < b.getStart(); }
+  bool operator>(const LifeInterval& b) { return _interval.first > b.getStart(); }
 };
 
 class RegisterAllocator {
-  const unsigned MAX_REGS_TO_USE = 14;
+  const unsigned MAX_REGS_TO_USE = 13;
   const unsigned MIN_REGS_TO_USE = 2;
   unsigned _num_regs;
 
@@ -168,15 +145,17 @@ class RegisterAllocator {
     }
   }
 
-  int getNextSpillOffset() {
-    int currentMaxOffset = 0;
+  int getNextSpillOffset(bool param) {
+    int currentMaxOffset = 0, currentMinOffset = 0;
     for(auto it = _currentLocations.begin(); it != _currentLocations.end(); ++it) {
       if (Spill::classof(&(*(it->second)))) {
         int offset = ((Spill *)it->second)->getOffset();
         if (currentMaxOffset < offset) currentMaxOffset = offset;
+        if (currentMinOffset > offset) currentMinOffset = offset;
       }
     }
-    return currentMaxOffset++;
+    if (param) return currentMaxOffset++;
+    return currentMinOffset--;
   }
 
   void setLastIntervalFrom(const llvm::Value *v, int start) {
@@ -200,9 +179,9 @@ class RegisterAllocator {
     }
   }
 
-  void spillAtInterval(LifeInterval *li) {
+  void spillAtInterval(LifeInterval *li, bool param) {
     LifeInterval *spill = _active.back();
-    Spill *sp = new Spill(getNextSpillOffset());
+    Spill *sp = new Spill(getNextSpillOffset(param), param);
     
     if (spill->getEnd() > li->getEnd()) {
       Register *r = (Register *)_currentLocations[spill->getValue()];
@@ -217,32 +196,20 @@ class RegisterAllocator {
     }
   }
   
-  void linearScanForValue(const llvm::Value *v) {
+  void linearScanForValue(const llvm::Value *v, bool param) {
     std::cerr << "5\n";
-    //std::vector<LifeInterval *> intervals;
-    //for(auto it = _unhandledLifeIntervals.begin(); it != _unhandledLifeIntervals.end(); ++it) {
-    //  intervals.push_back(it->second);
-    //}
-    //std::sort(intervals.begin(), intervals.end(), LifeInterval::compareStart);
-
-    std::cerr << "6\n";
     if (_unhandledLifeIntervals.find(v) != _unhandledLifeIntervals.end()) {
+      std::cerr << "6\n";
       LifeInterval *li = _unhandledLifeIntervals[v];
-    //for (LifeInterval *li : intervals) {
-      std::cerr << "7\n";
       expireOldIntervals(li);
       if (_active.size() >= _num_regs) {
-        std::cerr << "8\n";
-        spillAtInterval(li);
-        std::cerr << "9\n";
+        spillAtInterval(li, param);
       } else if(freeRegisters.size() > 0) {
-        std::cerr << "10\n";
         Register *r = freeRegisters.at(0);
         freeRegisters.erase( freeRegisters.begin() );
         _currentLocations[li->getValue()] = r;
         _active.push_back(li);
         std::sort(_active.begin(), _active.end(), LifeInterval::compareEnd);
-        std::cerr << "11\n";
       }
     }
   }
@@ -255,23 +222,20 @@ public:
     }
   }
 
-  void debugPrintIntervals() {
-    
-  }
-
   void addInstructionToLocation(const llvm::Value *inst, int loc) {
     _instructionLocation[inst] = loc;
   }
 
-  std::string getLocationNameForValue(const llvm::Value *v) {
-    std::cerr << "2\n";
+  std::string getLocationNameForValue(const llvm::Value *v, bool param=false) {
+    std::cerr << "1\n";
     if (_currentLocations.find(v) != _currentLocations.end()) {
-    std::cerr << "YAAAS 3\n";
+      std::cerr << "2\n";
       return _currentLocations[v]->getName();
     }
+    std::cerr << "3\n";
+    linearScanForValue(v, param);
     std::cerr << "4\n";
-    linearScanForValue(v);
-    return getLocationNameForValue(v);
+    return getLocationNameForValue(v, param);
   }
 
   void buildIntervalsForFunction(llvm::Function &f) {
@@ -289,6 +253,7 @@ public:
           if (!li.empty()) {
             live.insert(std::begin(li), std::end(li));
           }
+          //TODO: Should this be reverse order?
           for (auto II = succ->begin(), IE = succ->end(); II != IE; ++II) {
             llvm::Instruction &sin = *II;
             if (llvm::PHINode::classof(&sin)){
@@ -346,56 +311,56 @@ typedef burm_state *StatePtr;
 class Node {
 	unsigned _op;
 	StatePtr _state;  
+  
 	const llvm::Value *_value;
 	int _num_kids;
 	Node **_kids;
+  
   RegisterAllocator *_ra;
-public:
-	Node (unsigned op, std::vector<Node *> *kids, const llvm::Value *value, RegisterAllocator *ra) 
-		: _op(op),
-			_state(0),
-			_value(value),
-      _ra(ra) {
-		if ((kids == NULL) || (kids->size() == 0)) {
-			_num_kids = 0;
-			_kids = NULL;
-		}
-		else {
-			_num_kids = kids->size();
-			_kids = new NODEPTR[_num_kids];
-			for (int i = 0; i < _num_kids; ++i) 
-				_kids[i]=(*kids)[i];
-		}
-	}
-	~Node(){
-		delete _kids;
-	}
-	unsigned getOp() {
-		return _op;
-	}
-	void setOp(int op) {
-		_op = op;
-	}
+  std::string _mem_val;
 
-  std::string getLocationForNode() {
-    return _ra->getLocationNameForValue(_value);
+  unsigned _opType;
+public:
+  Node (unsigned op, std::vector<Node *> *kids, const llvm::Value *value, RegisterAllocator *ra, unsigned opT=-1) 
+    : _op(op),
+    _state(0),
+    _value(value),
+    _ra(ra),
+    _opType(opT) {
+      if ((kids == NULL) || (kids->size() == 0)) {
+        _num_kids = 0;
+        _kids = NULL;
+      }
+      else {
+        _num_kids = kids->size();
+        _kids = new NODEPTR[_num_kids];
+        for (int i = 0; i < _num_kids; ++i) 
+          _kids[i]=(*kids)[i];
+      }
+    }
+	~Node(){ delete _kids; }
+	unsigned getOp() { return _op; }
+  unsigned getOpType() { return _opType; }
+	void setOp(int op) { _op = op; }
+  void setOpType(int opt) { _opType = opt; }
+  bool isLeaf() { return _num_kids == 0; }
+  std::string getMemVal() { return _mem_val;}
+  void setMemVal(bool getRegister, std::string val = "", bool param=false) {
+    if (getRegister) {
+      std::cerr << "0\n";
+      _mem_val = _ra->getLocationNameForValue(_value, param);
+      return;
+    } else {
+      _mem_val = val;
+    }
   }
 
-	StatePtr getState() {
-		return _state;
-	}
-	void setState(StatePtr state) {
-		_state = state;
-	}
-	const llvm::Value* getValue() {
-		return _value;
-	}
-	int getNumKids() {
-		return _num_kids;
-	}
-	NODEPTR *getKids() {
-		return _kids;
-	}
+	StatePtr getState() { return _state; }
+	void setState(StatePtr state) { _state = state; }
+	const llvm::Value* getValue() { return _value; }
+
+	int getNumKids() { return _num_kids;}
+	NODEPTR *getKids() { return _kids; }
 };
 
 #define GET_KIDS(p)	((p)->getKids())
@@ -410,21 +375,27 @@ public:
 class COST {
   int _cost;
 public:
-	COST(int cost) {
-		_cost = cost;
-	}
-	int getCost() {
-		return _cost;
-	}
-	void setCost(int cost) {
-		_cost = cost;
-	}
+	COST(int cost) { _cost = cost; }
+	int getCost() { return _cost; }
+	void setCost(int cost) { _cost = cost; }
 };
 
 #define COST_LESS(a,b) ((a).getCost() < (b).getCost())
 
 static COST COST_INFINITY = COST(32767);
 static COST COST_ZERO     = COST(0);
+
+/** ================ Operations ================ **/
+
+enum {
+  CONST=0,
+  VAR,
+  RET,
+  STORE,
+  OP,
+  ADD,
+  MUL
+};
 
 /** =========================================== **/
 
@@ -439,10 +410,12 @@ void burm_trace(NODEPTR node, int eRuleNo, COST cost);
 //You need to pass in the necessary info (e.g. registers, memory locations)
 // to the action call when you call it to generate code
 #define CONST 0
-#define ADD 1
-#define MOV 2
-#define ADDR 3
-#define RET 4
+#define VAR 1
+#define RET 2
+#define STORE 3
+#define OP 4
+#define ADD 5
+#define MUL 6
 
 struct burm_state {
   int op;
@@ -450,9 +423,9 @@ struct burm_state {
   struct burm_state **kids;
   COST cost[5];
   struct {
-    unsigned burm_stmt:2;
-    unsigned burm_rc:2;
-    unsigned burm_mem:1;
+    unsigned burm_stmt:3;
+    unsigned burm_op:2;
+    unsigned burm_var:1;
     unsigned burm_const:1;
   } rule;
 };

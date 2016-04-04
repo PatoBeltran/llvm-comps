@@ -1,8 +1,8 @@
 inter:
   push %ebp
   mov %ebp, %esp
-  mov 0x19cbde8, 10
-  mov %eax, 0x19cc608
+  mov %rax, 10
+  mov %eax, %rax
   mov %esp, %ebp
   pop %ebp
   ret

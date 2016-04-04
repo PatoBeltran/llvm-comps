@@ -87,19 +87,40 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
 std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra) {
   NODEPTR kid = nullptr;
-  int nodeType = -1;
+  int nodeType = -1, nodeOpType = -1;
+  std::vector<NODEPTR> *children;
+
   std::vector<NODEPTR> *subtree = new std::vector<NODEPTR>();
   if (Instruction::classof(&v)) {
     Instruction &inst = cast<Instruction>(v);
     for (unsigned k = 0; k < inst.getNumOperands(); k++){
+      children = nullptr;
       nodeType = -1;
-      Value *v = inst.getOperand(inst.getNumOperands() - k - 1);
-      if (ConstantInt::classof(v)) {
-        nodeType = CONST;
-      } else {
-        nodeType = ADDR;
+      Value *v = inst.getOperand(inst.getNumOperands() - k - 1);      
+      if (LoadInst::classof(v)){
+        Value *va = ((LoadInst *)v)->getPointerOperand();
+        v = va;
       }
-      kid = new Node(nodeType, nullptr, v, ra);
+      if (ConstantInt::classof(v)) {
+        kid = new Node(CONST, nullptr, v, ra);
+        subtree->push_back(kid);
+        continue;
+      } else if (AllocaInst::classof(v)) {
+        kid = new Node(VAR, nullptr, v, ra);
+        subtree->push_back(kid);
+        continue;
+      }
+
+      if (BinaryOperator::classof(v)) {
+        unsigned op = ((BinaryOperator*)v)->getOpcode();
+        nodeType = OP;
+        switch (op) {
+          case llvm::Instruction::Add: nodeOpType = ADD; break;
+          case llvm::Instruction::Mul: nodeOpType = MUL; break;
+        }
+        children = buildSubtreeForInstruction(*v, ra);
+      } 
+      kid = new Node(nodeType, children, v, ra, nodeOpType);
       subtree->push_back(kid);
     }
   }
@@ -123,39 +144,57 @@ static RegisterAllocator *setLocationsToInstructionsInModule(Module *M) {
   return ra;
 }
 
+void printDebugTree(Node *p, int indent=0) {
+  if(p != nullptr) {
+    if (indent) errs() << "|"; 
+    int i = 0;
+    for (; i < indent-4; ++i) errs() << " ";
+    if (indent-4 > 0) errs() << "|";
+    for (; i < indent; ++i) errs() << "-";
+    errs() << "+ " << p->getOp() << "\n";
+    
+    if (p->getNumKids() > 0) {
+      Node **n = p->getKids();
+      for (int i = 0; i < p->getNumKids(); ++i) {
+        printDebugTree(n[i], (indent+4));
+      }
+    }
+  }
+}
+
 static void compileFunction(Function &func, RegisterAllocator *ra) {
   bool hasHadReturn = false;
 
-  //Print frame
+  //Function Prologue
   std::string funcName(func.getName());
-  std::cout << funcName << ":\n";
-  std::cout << "  push %ebp\n";
-  std::cout << "  mov %ebp, %esp\n";
-  //sub   esp, N //TODO: Grow the stack by N bytes to reserve space for local variables
+  std::cout << "_" << funcName << ":\n";
 
   //Prework for register allocation
   ra->buildIntervalsForFunction(func);
-
-  ra->debugPrintIntervals();
-
-  //Build Expression Tree
-  NODEPTR root = nullptr;
   std::vector<NODEPTR> *children = nullptr;
   int rootType = -1;
-  for (Function::iterator bb = func.begin(), be = func.end(); bb != be; ++bb) {
+  NODEPTR root = nullptr;
+  //Build Expression Tree
+  for (auto bb = func.begin(), be = func.end(); bb != be; ++bb) {
     BasicBlock &BB = *bb;
     for (BasicBlock::iterator i = BB.begin(), ie = BB.end(); i != ie; ++i) {
       Instruction &inst = *i;
       rootType = -1;
       children = buildSubtreeForInstruction(inst, ra);
-      if (ReturnInst::classof(&inst)) {
-        hasHadReturn = true;
+      if (StoreInst::classof(&inst)) {
+        rootType = STORE;
+      }
+      else if (ReturnInst::classof(&inst)) {
         rootType = RET;
-      } else if (StoreInst::classof(&inst)) {
-        rootType = MOV;
+        hasHadReturn = true;
       }
       if (rootType != -1) {
         root = new Node(rootType, children, &inst, ra);
+
+        //TODO: Delete when not needed
+        errs()<<"\n";
+        printDebugTree(root);
+
         CodeGenerator::generateCode(root);
         delete root;
         root = nullptr;
@@ -163,10 +202,9 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
     }
   }
 
+  //TODO: Support void functions
   if (!hasHadReturn) {
-    //Function epilog for void functions
-    std::cout << "  mov esp, ebp\n";
-    std::cout << "  pop ebp\n";
+    //Function epilogue for void functions
     std::cout << "  ret\n";
   }
   std::cout << "\n";

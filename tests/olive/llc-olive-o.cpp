@@ -1,7 +1,7 @@
 #include "llc-olive-o.h"
 #define burm_stmt_NT 1
-#define burm_rc_NT 2
-#define burm_mem_NT 3
+#define burm_op_NT 2
+#define burm_var_NT 3
 #define burm_const_NT 4
 extern int burm_max_nt;
 
@@ -11,10 +11,12 @@ void stmt_action(struct burm_state *_s,
 int indent);
 
 
-void rc_action(struct burm_state *_s);
+void op_action(struct burm_state *_s, 
+
+int indent);
 
 
-void mem_action(struct burm_state *_s);
+void var_action(struct burm_state *_s);
 
 
 void const_action(struct burm_state *_s);
@@ -29,8 +31,8 @@ void const_action(struct burm_state *_s);
 static NODEPTR burm_np;
 
 #define burm_stmt_NT 1
-#define burm_rc_NT 2
-#define burm_mem_NT 3
+#define burm_op_NT 2
+#define burm_var_NT 3
 #define burm_const_NT 4
 extern int burm_max_nt;
 int burm_max_nt = 4;
@@ -38,53 +40,69 @@ int burm_max_nt = 4;
 std::string burm_ntname[] = {
   "",
   "stmt",
-  "rc",
-  "mem",
+  "op",
+  "var",
   "const",
   ""
 };
 
-static short burm_nts_0[] = { burm_mem_NT, burm_rc_NT, 0 };
-static short burm_nts_1[] = { burm_rc_NT, 0 };
-static short burm_nts_2[] = { burm_mem_NT, 0 };
-static short burm_nts_3[] = { burm_const_NT, 0 };
-static short burm_nts_4[] = { 0 };
+static short burm_nts_0[] = { burm_op_NT, 0 };
+static short burm_nts_1[] = { burm_var_NT, 0 };
+static short burm_nts_2[] = { burm_const_NT, 0 };
+static short burm_nts_3[] = { burm_var_NT, burm_const_NT, 0 };
+static short burm_nts_4[] = { burm_var_NT, burm_var_NT, 0 };
+static short burm_nts_5[] = { burm_var_NT, burm_op_NT, 0 };
+static short burm_nts_6[] = { 0 };
 
 short *burm_nts[] = {
   burm_nts_0,  /* 0 */
-  burm_nts_0,  /* 1 */
-  burm_nts_1,  /* 2 */
-  burm_nts_2,  /* 3 */
+  burm_nts_1,  /* 1 */
+  burm_nts_2,  /* 2 */
+  burm_nts_0,  /* 3 */
   burm_nts_3,  /* 4 */
   burm_nts_4,  /* 5 */
-  burm_nts_4,  /* 6 */
+  burm_nts_5,  /* 6 */
+  burm_nts_3,  /* 7 */
+  burm_nts_4,  /* 8 */
+  burm_nts_5,  /* 9 */
+  burm_nts_6,  /* 10 */
+  burm_nts_6,  /* 11 */
 };
 
 char burm_arity[] = {
   0,  /* 0=CONST */
-  2,  /* 1=ADD */
-  2,  /* 2=MOV */
-  0,  /* 3=ADDR */
-  1,  /* 4=RET */
+  0,  /* 1=VAR */
+  1,  /* 2=RET */
+  2,  /* 3=STORE */
+  2,  /* 4=OP */
+  0,  /* 5=ADD */
+  0,  /* 6=MUL */
 };
 
 std::string burm_opname[] = {
   /* 0 */  "CONST",
-  /* 1 */  "ADD",
-  /* 2 */  "MOV",
-  /* 3 */  "ADDR",
-  /* 4 */  "RET",
+  /* 1 */  "VAR",
+  /* 2 */  "RET",
+  /* 3 */  "STORE",
+  /* 4 */  "OP",
+  /* 5 */  "ADD",
+  /* 6 */  "MUL",
 };
 
 
 std::string burm_string[] = {
-  /* 0 */  "stmt: ADD(mem,rc)",
-  /* 1 */  "stmt: MOV(mem,rc)",
-  /* 2 */  "stmt: RET(rc)",
-  /* 3 */  "rc: mem",
-  /* 4 */  "rc: const",
-  /* 5 */  "mem: ADDR",
-  /* 6 */  "const: CONST",
+  /* 0 */  "stmt: op",
+  /* 1 */  "stmt: RET(var)",
+  /* 2 */  "stmt: RET(const)",
+  /* 3 */  "stmt: RET(op)",
+  /* 4 */  "stmt: STORE(var,const)",
+  /* 5 */  "stmt: STORE(var,var)",
+  /* 6 */  "stmt: STORE(var,op)",
+  /* 7 */  "op: OP(var,const)",
+  /* 8 */  "op: OP(var,var)",
+  /* 9 */  "op: OP(var,op)",
+  /* 10 */  "var: VAR",
+  /* 11 */  "const: CONST",
 };
 
 
@@ -100,16 +118,26 @@ int burm_file_numbers[] = {
   /* 4 */  0,
   /* 5 */  0,
   /* 6 */  0,
+  /* 7 */  0,
+  /* 8 */  0,
+  /* 9 */  0,
+  /* 10 */  0,
+  /* 11 */  0,
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  447,
-  /* 1 */  459,
-  /* 2 */  471,
-  /* 3 */  484,
-  /* 4 */  490,
-  /* 5 */  496,
-  /* 6 */  502,
+  /* 0 */  418,
+  /* 1 */  424,
+  /* 2 */  436,
+  /* 3 */  448,
+  /* 4 */  460,
+  /* 5 */  475,
+  /* 6 */  493,
+  /* 7 */  508,
+  /* 8 */  530,
+  /* 9 */  554,
+  /* 10 */  578,
+  /* 11 */  584,
 };
 
 #pragma GCC diagnostic push
@@ -120,22 +148,27 @@ static short burm_decode_stmt[] = {
   0,
   1,
   2,
-};
-
-static short burm_decode_rc[] = {
-   -1,
   3,
   4,
+  5,
+  6,
 };
 
-static short burm_decode_mem[] = {
+static short burm_decode_op[] = {
    -1,
-  5,
+  7,
+  8,
+  9,
+};
+
+static short burm_decode_var[] = {
+   -1,
+  10,
 };
 
 static short burm_decode_const[] = {
    -1,
-  6,
+  11,
 };
 
 int burm_rule(struct burm_state *state, int goalnt) {
@@ -145,8 +178,8 @@ int burm_rule(struct burm_state *state, int goalnt) {
     return 0;
   switch (goalnt) {
   case burm_stmt_NT:  return burm_decode_stmt[((struct burm_state *)state)->rule.burm_stmt];
-  case burm_rc_NT:  return burm_decode_rc[((struct burm_state *)state)->rule.burm_rc];
-  case burm_mem_NT:  return burm_decode_mem[((struct burm_state *)state)->rule.burm_mem];
+  case burm_op_NT:  return burm_decode_op[((struct burm_state *)state)->rule.burm_op];
+  case burm_var_NT:  return burm_decode_var[((struct burm_state *)state)->rule.burm_var];
   case burm_const_NT:  return burm_decode_const[((struct burm_state *)state)->rule.burm_const];
   default:
     burm_assert(0, PANIC("Bad goal nonterminal %d in burm_rule\n", goalnt));
@@ -176,45 +209,80 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 {
 
 
- (*_c).setCost(_s->kids[0]->cost[burm_mem_NT].getCost()+_s->kids[1]->cost[burm_rc_NT].getCost()); 
+ (*_c).setCost(_s->cost[burm_op_NT].getCost()); 
 }
   break;
   case 1:
 {
 
 
- (*_c).setCost(_s->kids[0]->cost[burm_mem_NT].getCost()+_s->kids[1]->cost[burm_rc_NT].getCost()); 
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()); 
 }
   break;
   case 2:
 {
 
 
- (*_c).setCost(_s->kids[0]->cost[burm_rc_NT].getCost()); 
+ (*_c).setCost(_s->kids[0]->cost[burm_const_NT].getCost()); 
 }
   break;
   case 3:
 {
 
 
- (*_c).setCost(_s->cost[burm_mem_NT].getCost()); 
+ (*_c).setCost(_s->kids[0]->cost[burm_op_NT].getCost()); 
 }
   break;
   case 4:
 {
 
 
- (*_c).setCost(_s->cost[burm_const_NT].getCost()); 
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_const_NT].getCost()); 
 }
   break;
   case 5:
 {
 
 
- (*_c).setCost(1); 
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_var_NT].getCost()); 
 }
   break;
   case 6:
+{
+
+
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_op_NT].getCost()); 
+}
+  break;
+  case 7:
+{
+
+
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_const_NT].getCost()); 
+}
+  break;
+  case 8:
+{
+
+
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_var_NT].getCost()); 
+}
+  break;
+  case 9:
+{
+
+
+ (*_c).setCost(_s->kids[0]->cost[burm_var_NT].getCost()+_s->kids[1]->cost[burm_op_NT].getCost()); 
+}
+  break;
+  case 10:
+{
+
+
+ (*_c).setCost(1); 
+}
+  break;
+  case 11:
 {
 
 
@@ -231,10 +299,12 @@ void stmt_action(struct burm_state *_s,
 int indent);
 
 
-void rc_action(struct burm_state *_s);
+void op_action(struct burm_state *_s, 
+
+int indent);
 
 
-void mem_action(struct burm_state *_s);
+void var_action(struct burm_state *_s);
 
 
 void const_action(struct burm_state *_s);
@@ -255,11 +325,11 @@ void burm_exec(struct burm_state *state, int nterm, ...)
     case burm_stmt_NT:
       stmt_action(state,va_arg(ap,int));
       break;
-    case burm_rc_NT:
-      rc_action(state);
+    case burm_op_NT:
+      op_action(state,va_arg(ap,int));
       break;
-    case burm_mem_NT:
-      mem_action(state);
+    case burm_var_NT:
+      var_action(state);
       break;
     case burm_const_NT:
       const_action(state);
@@ -275,8 +345,8 @@ void burm_exec(struct burm_state *state, int nterm, ...)
 
 #define EXEC(s,n,a) ( \
   (n == burm_stmt_NT)? burm_exec(s,n,a): \
-  (n == burm_rc_NT)? burm_exec(s,n): \
-  (n == burm_mem_NT)? burm_exec(s,n): \
+  (n == burm_op_NT)? burm_exec(s,n,a): \
+  (n == burm_var_NT)? burm_exec(s,n): \
   (n == burm_const_NT)? burm_exec(s,n): \
   PANIC("Bad nonterminal %d in $exec\n", n))
 
@@ -300,14 +370,8 @@ int indent)
 {
 
 
- 
-        std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  "; 
-        std::cout << realIndent << "add ";
-        mem_action(_s->kids[0]);
-        std::cout << ", ";
-        rc_action(_s->kids[1]);
-        std::cout << "\n";
+
+        op_action(_s,indent);
       
 }
   break;
@@ -315,14 +379,14 @@ int indent)
 {
 
 
- 
+
+        var_action(_s->kids[0]);
+        
         std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  "; 
-        std::cout << realIndent << "mov ";
-        mem_action(_s->kids[0]);
-        std::cout << ", ";
-        rc_action(_s->kids[1]);
-        std::cout << "\n";
+        for (int i=0; i<indent; i++) realIndent += "  ";
+        std::cout << realIndent << "mov %rax, " << _s->kids[0]->node->getMemVal() << "\n";
+        
+        std::cout << realIndent << "ret\n";
       
 }
   break;
@@ -330,37 +394,30 @@ int indent)
 {
 
 
- 
+
+        const_action(_s->kids[0]);
+        
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  ";
-        std::cout << realIndent << "mov %eax, ";
-        rc_action(_s->kids[0]);
-        std::cout << "\n";
-        std::cout << realIndent << "mov %esp, %ebp\n"; 
-        std::cout << realIndent << "pop %ebp\n";
+        std::cout << realIndent << "mov %rax, " << _s->kids[0]->node->getMemVal() << "\n";
+        
         std::cout << realIndent << "ret\n";
       
 }
   break;
-  }
-}
-
-
-void rc_action(struct burm_state *_s)
-{
-  struct burm_state *_t;
-  int _ern=burm_decode_rc[_s->rule.burm_rc];
-  NODEPTR *_children;
-  if(_s->rule.burm_rc==0)
-    NO_ACTION(rc);
-  switch(_ern){
   case 3:
 {
 
 
 
-      mem_action(_s);
-    
+        op_action(_s->kids[0],indent);
+        
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  ";
+        
+        std::cout << realIndent << "mov %rax, " << _s->kids[0]->node->getMemVal() << "\n";
+        std::cout << realIndent << "ret\n";
+      
 }
   break;
   case 4:
@@ -368,7 +425,148 @@ void rc_action(struct burm_state *_s)
 
 
 
-      const_action(_s);
+        var_action(_s->kids[0]);
+        const_action(_s->kids[1]);
+
+        std::string firstVal = _s->kids[0]->node->getMemVal();
+        std::string secondVal = _s->kids[1]->node->getMemVal();
+        _s->node->setMemVal(false, firstVal);        
+
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+        std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
+      
+}
+  break;
+  case 5:
+{
+
+
+
+        var_action(_s->kids[0]);
+        var_action(_s->kids[1]);
+        //_s->node->setMemVal(true);        
+
+        std::string newReg = _s->node->getMemVal();
+        std::string firstVal = _s->kids[0]->node->getMemVal();
+        std::string secondVal = _s->kids[1]->node->getMemVal();
+        
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+
+        std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
+        std::cout << realIndent << "mov " << newReg << ", " << secondVal << "\n";
+      
+}
+  break;
+  case 6:
+{
+
+
+
+        var_action(_s->kids[0]);
+        op_action(_s->kids[1],indent);
+
+        std::string firstVal = _s->kids[0]->node->getMemVal();
+        std::string secondVal = _s->kids[1]->node->getMemVal();
+        _s->node->setMemVal(false, firstVal);        
+        
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+        std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
+      
+}
+  break;
+  }
+}
+
+
+void op_action(struct burm_state *_s, 
+
+int indent)
+{
+  struct burm_state *_t;
+  int _ern=burm_decode_op[_s->rule.burm_op];
+  NODEPTR *_children;
+  if(_s->rule.burm_op==0)
+    NO_ACTION(op);
+  switch(_ern){
+  case 7:
+{
+
+
+
+        var_action(_s->kids[0]);
+        const_action(_s->kids[1]);
+
+        std::string firstVal = _s->kids[0]->node->getMemVal();
+        std::string secondVal = _s->kids[1]->node->getMemVal();
+        _s->node->setMemVal(false, firstVal);        
+        
+        std::string operation = "";
+        switch (_s->node->getOpType()) {
+          case ADD: operation = "add"; break;
+          case MUL: operation = "mul"; break; 
+        }
+        
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+
+        std::cout << realIndent << operation << " " << firstVal << ", " << secondVal << "\n";
+      
+}
+  break;
+  case 8:
+{
+
+
+
+        var_action(_s->kids[0]);
+        var_action(_s->kids[1]);
+        _s->node->setMemVal(true);        
+
+        std::string newReg = _s->node->getMemVal();
+        std::string firstVal = _s->kids[0]->node->getMemVal();
+        std::string secondVal = _s->kids[1]->node->getMemVal();
+        
+        std::string operation = "";
+        switch (_s->node->getOpType()) {
+          case ADD: operation = "add"; break;
+          case MUL: operation = "mul"; break; 
+        }
+        
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+
+        std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
+        std::cout << realIndent << operation << " " << newReg << ", " << secondVal << "\n";
+      
+}
+  break;
+  case 9:
+{
+
+
+
+      var_action(_s->kids[0]);
+      op_action(_s->kids[1],indent);
+      _s->node->setMemVal(true);   
+
+      std::string realIndent = "";
+      for (int i=0; i<indent; i++) realIndent += "  ";
+
+      std::string newReg = _s->node->getMemVal();
+      std::string firstVal = _s->kids[0]->node->getMemVal();
+      std::string secondVal = _s->kids[1]->node->getMemVal();
+           
+      std::string operation = "";
+      switch (_s->node->getOpType()) {
+        case ADD: operation = "add"; break;
+        case MUL: operation = "mul"; break; 
+      }
+      
+      std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
+      std::cout << realIndent << operation << " " << newReg << ", " << secondVal << "\n";
     
 }
   break;
@@ -376,20 +574,20 @@ void rc_action(struct burm_state *_s)
 }
 
 
-void mem_action(struct burm_state *_s)
+void var_action(struct burm_state *_s)
 {
   struct burm_state *_t;
-  int _ern=burm_decode_mem[_s->rule.burm_mem];
+  int _ern=burm_decode_var[_s->rule.burm_var];
   NODEPTR *_children;
-  if(_s->rule.burm_mem==0)
-    NO_ACTION(mem);
+  if(_s->rule.burm_var==0)
+    NO_ACTION(var);
   switch(_ern){
-  case 5:
+  case 10:
 {
 
 
 
-      std::cout << _s->node->getLocationForNode();
+      _s->node->setMemVal(true);
     
 }
   break;
@@ -405,34 +603,26 @@ void const_action(struct burm_state *_s)
   if(_s->rule.burm_const==0)
     NO_ACTION(const);
   switch(_ern){
-  case 6:
+  case 11:
 {
 
 
 
          if (llvm::ConstantInt::classof(_s->node->getValue())) {
            const llvm::ConstantInt *CI = llvm::cast<llvm::ConstantInt>(_s->node->getValue());
-           std::cout << CI->getValue().getSExtValue();
+           _s->node->setMemVal(false, std::to_string(CI->getValue().getSExtValue()));
          }
        
 }
   break;
   }
 }
-static void burm_closure_mem(struct burm_state *, COST);
-static void burm_closure_const(struct burm_state *, COST);
+static void burm_closure_op(struct burm_state *, COST);
 
-static void burm_closure_mem(struct burm_state *s, COST c) {
-  if(burm_cost_code(&c,3,s) && COST_LESS(c,s->cost[burm_rc_NT])) {
-burm_trace(burm_np, 3, c);     s->cost[burm_rc_NT] = c ;
-    s->rule.burm_rc = 1;
-  }
-}
-
-static void burm_closure_const(struct burm_state *s, COST c) {
-  if(burm_cost_code(&c,4,s) && COST_LESS(c,s->cost[burm_rc_NT])) {
-burm_trace(burm_np, 4, c);     s->cost[burm_rc_NT] = c ;
-    s->rule.burm_rc = 2;
+static void burm_closure_op(struct burm_state *s, COST c) {
+  if(burm_cost_code(&c,0,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 0, c);     s->cost[burm_stmt_NT] = c ;
+    s->rule.burm_stmt = 1;
   }
 }
 
@@ -451,8 +641,8 @@ struct burm_state *burm_alloc_state(NODEPTR u,int op,int arity)
   }else
     p->kids=0;
   p->rule.burm_stmt =
-  p->rule.burm_rc =
-  p->rule.burm_mem =
+  p->rule.burm_op =
+  p->rule.burm_var =
   p->rule.burm_const =
     0;
   p->cost[1] =
@@ -479,48 +669,13 @@ struct burm_state *burm_label1(NODEPTR u) {
     SET_STATE(u,s);
     k=0;
     {  		/* const: CONST */
-      if(burm_cost_code(&c,6,s) && COST_LESS(c,s->cost[burm_const_NT])) {
-burm_trace(burm_np, 6, c);         s->cost[burm_const_NT] = c ;
+      if(burm_cost_code(&c,11,s) && COST_LESS(c,s->cost[burm_const_NT])) {
+burm_trace(burm_np, 11, c);         s->cost[burm_const_NT] = c ;
         s->rule.burm_const = 1;
-        burm_closure_const(s, c );
       }
     }
     break;
-  case 1:		/* ADD */
-    s=burm_alloc_state(u,op,arity);
-    SET_STATE(u,s);
-    k=s->kids;
-    children=GET_KIDS(u);
-    for(i=0;i<arity;i++)
-      k[i]=burm_label1(children[i]);
-    if (   /* stmt: ADD(mem,rc) */
-      k[0]->rule.burm_mem && 
-      k[1]->rule.burm_rc
-    ) {
-      if(burm_cost_code(&c,0,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
-burm_trace(burm_np, 0, c);         s->cost[burm_stmt_NT] = c ;
-        s->rule.burm_stmt = 1;
-      }
-    }
-    break;
-  case 2:		/* MOV */
-    s=burm_alloc_state(u,op,arity);
-    SET_STATE(u,s);
-    k=s->kids;
-    children=GET_KIDS(u);
-    for(i=0;i<arity;i++)
-      k[i]=burm_label1(children[i]);
-    if (   /* stmt: MOV(mem,rc) */
-      k[0]->rule.burm_mem && 
-      k[1]->rule.burm_rc
-    ) {
-      if(burm_cost_code(&c,1,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
-burm_trace(burm_np, 1, c);         s->cost[burm_stmt_NT] = c ;
-        s->rule.burm_stmt = 2;
-      }
-    }
-    break;
-  case 3:		/* ADDR */
+  case 1:		/* VAR */
 #ifdef LEAF_TRAP
     if(s=LEAF_TRAP(u,op))
       return s;
@@ -528,29 +683,133 @@ burm_trace(burm_np, 1, c);         s->cost[burm_stmt_NT] = c ;
     s=burm_alloc_state(u,op,arity);
     SET_STATE(u,s);
     k=0;
-    {  		/* mem: ADDR */
-      if(burm_cost_code(&c,5,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
-burm_trace(burm_np, 5, c);         s->cost[burm_mem_NT] = c ;
-        s->rule.burm_mem = 1;
-        burm_closure_mem(s, c );
+    {  		/* var: VAR */
+      if(burm_cost_code(&c,10,s) && COST_LESS(c,s->cost[burm_var_NT])) {
+burm_trace(burm_np, 10, c);         s->cost[burm_var_NT] = c ;
+        s->rule.burm_var = 1;
       }
     }
     break;
-  case 4:		/* RET */
+  case 2:		/* RET */
     s=burm_alloc_state(u,op,arity);
     SET_STATE(u,s);
     k=s->kids;
     children=GET_KIDS(u);
     for(i=0;i<arity;i++)
       k[i]=burm_label1(children[i]);
-    if (   /* stmt: RET(rc) */
-      k[0]->rule.burm_rc
+    if (   /* stmt: RET(op) */
+      k[0]->rule.burm_op
+    ) {
+      if(burm_cost_code(&c,3,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 3, c);         s->cost[burm_stmt_NT] = c ;
+        s->rule.burm_stmt = 4;
+      }
+    }
+    if (   /* stmt: RET(const) */
+      k[0]->rule.burm_const
     ) {
       if(burm_cost_code(&c,2,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
 burm_trace(burm_np, 2, c);         s->cost[burm_stmt_NT] = c ;
         s->rule.burm_stmt = 3;
       }
     }
+    if (   /* stmt: RET(var) */
+      k[0]->rule.burm_var
+    ) {
+      if(burm_cost_code(&c,1,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 1, c);         s->cost[burm_stmt_NT] = c ;
+        s->rule.burm_stmt = 2;
+      }
+    }
+    break;
+  case 3:		/* STORE */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    if (   /* stmt: STORE(var,op) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_op
+    ) {
+      if(burm_cost_code(&c,6,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 6, c);         s->cost[burm_stmt_NT] = c ;
+        s->rule.burm_stmt = 7;
+      }
+    }
+    if (   /* stmt: STORE(var,var) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_var
+    ) {
+      if(burm_cost_code(&c,5,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 5, c);         s->cost[burm_stmt_NT] = c ;
+        s->rule.burm_stmt = 6;
+      }
+    }
+    if (   /* stmt: STORE(var,const) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_const
+    ) {
+      if(burm_cost_code(&c,4,s) && COST_LESS(c,s->cost[burm_stmt_NT])) {
+burm_trace(burm_np, 4, c);         s->cost[burm_stmt_NT] = c ;
+        s->rule.burm_stmt = 5;
+      }
+    }
+    break;
+  case 4:		/* OP */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    if (   /* op: OP(var,op) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_op
+    ) {
+      if(burm_cost_code(&c,9,s) && COST_LESS(c,s->cost[burm_op_NT])) {
+burm_trace(burm_np, 9, c);         s->cost[burm_op_NT] = c ;
+        s->rule.burm_op = 3;
+        burm_closure_op(s, c );
+      }
+    }
+    if (   /* op: OP(var,var) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_var
+    ) {
+      if(burm_cost_code(&c,8,s) && COST_LESS(c,s->cost[burm_op_NT])) {
+burm_trace(burm_np, 8, c);         s->cost[burm_op_NT] = c ;
+        s->rule.burm_op = 2;
+        burm_closure_op(s, c );
+      }
+    }
+    if (   /* op: OP(var,const) */
+      k[0]->rule.burm_var && 
+      k[1]->rule.burm_const
+    ) {
+      if(burm_cost_code(&c,7,s) && COST_LESS(c,s->cost[burm_op_NT])) {
+burm_trace(burm_np, 7, c);         s->cost[burm_op_NT] = c ;
+        s->rule.burm_op = 1;
+        burm_closure_op(s, c );
+      }
+    }
+    break;
+  case 5:		/* ADD */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    break;
+  case 6:		/* MUL */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
     break;
   default:
     burm_assert(0, PANIC("Bad operator %d in burm_state\n", op));
@@ -605,20 +864,25 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
   burm_assert(p, PANIC("NULL tree in burm_kids\n"));
   burm_assert(kids, PANIC("NULL kids in burm_kids\n"));
   switch (eruleno) {
-  case 1: /* stmt: MOV(mem,rc) */
-  case 0: /* stmt: ADD(mem,rc) */
+  case 0: /* stmt: op */
+    kids[0] = p;
+    break;
+  case 3: /* stmt: RET(op) */
+  case 2: /* stmt: RET(const) */
+  case 1: /* stmt: RET(var) */
+    kids[0] = burm_child(p,0);
+    break;
+  case 9: /* op: OP(var,op) */
+  case 8: /* op: OP(var,var) */
+  case 7: /* op: OP(var,const) */
+  case 6: /* stmt: STORE(var,op) */
+  case 5: /* stmt: STORE(var,var) */
+  case 4: /* stmt: STORE(var,const) */
     kids[0] = burm_child(p,0);
     kids[1] = burm_child(p,1);
     break;
-  case 2: /* stmt: RET(rc) */
-    kids[0] = burm_child(p,0);
-    break;
-  case 4: /* rc: const */
-  case 3: /* rc: mem */
-    kids[0] = p;
-    break;
-  case 6: /* const: CONST */
-  case 5: /* mem: ADDR */
+  case 11: /* const: CONST */
+  case 10: /* var: VAR */
     break;
   default:
     burm_assert(0, PANIC("Bad external rule number %d in burm_kids\n", eruleno));
