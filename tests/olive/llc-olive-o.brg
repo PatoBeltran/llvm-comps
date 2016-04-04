@@ -400,6 +400,9 @@ void burm_trace(NODEPTR node, int eRuleNo, COST cost);
 %term OP=4
 %declare<void> stmt<int indent>;
 %declare<void> op<int indent>;
+%declare<void> var_op_const<int indent>;
+%declare<void> var_op<int indent>;
+%declare<void> const_op<int indent>;
 %declare<void> var;
 %declare<void> const;
 %%
@@ -410,50 +413,41 @@ stmt: op
         $action[1](indent);
       };
 
-stmt: RET(var)
-      { $cost[0].setCost($cost[2].getCost()); }
-      = {
-        $action[2]();
-        
-        std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  ";
-        std::cout << realIndent << "mov %rax, " << $2->getMemVal() << "\n";
-        
-        std::cout << realIndent << "ret\n";
-      };
-      
-stmt: RET(const)
-      { $cost[0].setCost($cost[2].getCost()); }
-      = {
-        $action[2]();
-        
-        std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  ";
-        std::cout << realIndent << "mov %rax, " << $2->getMemVal() << "\n";
-        
-        std::cout << realIndent << "ret\n";
-      };
-
-stmt: RET(op)
+stmt: RET(var_op_const)
       { $cost[0].setCost($cost[2].getCost()); }
       = {
         $action[2](indent);
         
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  ";
-        
         std::cout << realIndent << "mov %rax, " << $2->getMemVal() << "\n";
+        
         std::cout << realIndent << "ret\n";
       };
 
-stmt: STORE(var, const)
+stmt: STORE(var, const_op)
       { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
       = {
         $action[2]();
-        $action[3]();
+        $action[3](indent);
 
         std::string firstVal = $2->getMemVal();
         std::string secondVal = $3->getMemVal();
+        $0->setMemVal(false, firstVal);        
+
+        std::string realIndent = "";
+        for (int i=0; i<indent; i++) realIndent += "  "; 
+        std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
+      };
+
+stmt: STORE(const_op, var)
+      { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
+      = {
+        $action[2](indent);
+        $action[3]();
+
+        std::string firstVal = $3->getMemVal();
+        std::string secondVal = $2->getMemVal();
         $0->setMemVal(false, firstVal);        
 
         std::string realIndent = "";
@@ -475,29 +469,14 @@ stmt: STORE(var, var)
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
 
-        std::cout << realIndent << "mov " << newReg << ", " << secondVal << "\n";
-        std::cout << realIndent << "mov " << firstVal << ", " << newReg << "\n";
+        std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
+        std::cout << realIndent << "mov " << secondVal << ", " << newReg << "\n";
       };
 
-stmt: STORE(var, op)
+op: OP(var_op, const)
       { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
       = {
-        $action[2]();
-        $action[3](indent);
-
-        std::string firstVal = $2->getMemVal();
-        std::string secondVal = $3->getMemVal();
-        $0->setMemVal(false, firstVal);        
-        
-        std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  "; 
-        std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
-      };
-
-op: OP(var, const)
-      { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
-      = {
-        $action[2]();
+        $action[2](indent);
         $action[3]();
 
         std::string firstVal = $2->getMemVal();
@@ -518,11 +497,11 @@ op: OP(var, const)
         std::cout << realIndent << operation << " " << firstVal << ", " << secondVal << "\n";
       };
       
-op: OP(var, var)
+op: OP(var_op_const, var_op_const)
       { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
       = {
-        $action[2]();
-        $action[3]();
+        $action[2](indent);
+        $action[3](indent);
         $0->setMemVal(true);        
 
         std::string newReg = $0->getMemVal();
@@ -544,31 +523,47 @@ op: OP(var, var)
         std::cout << realIndent << operation << " " << newReg << ", " << secondVal << "\n";
       };
 
-op: OP(var, op)
-    { $cost[0].setCost($cost[2].getCost()+$cost[3].getCost()); }
-    = {
-      $action[2]();
-      $action[3](indent);
-      $0->setMemVal(true);   
+var_op_const: const
+              { $cost[0].setCost(1); }
+              = {
+                $action[1]();
+                $0->setMemVal(false, $1->getMemVal());
+              };
+              
+var_op_const: var_op
+              { $cost[0].setCost(1); }
+              = {
+                $action[1](indent);
+                $0->setMemVal(false, $1->getMemVal());
+              };
 
-      std::string realIndent = "";
-      for (int i=0; i<indent; i++) realIndent += "  ";
+var_op: var
+        { $cost[0].setCost(1); }
+        = {
+          $action[1]();
+          $0->setMemVal(false, $1->getMemVal());
+        };
+        
+var_op: op
+        { $cost[0].setCost(1); }
+        = {
+          $action[1](indent);
+          $0->setMemVal(false, $1->getMemVal());
+        };
 
-      std::string newReg = $0->getMemVal();
-      std::string firstVal = $2->getMemVal();
-      std::string secondVal = $3->getMemVal();
-           
-      std::string operation = "";
-      switch ($0->getOpType()) {
-        case ADD: operation = "add"; break;
-        case MUL: operation = "mul"; break; 
-        case DIV: operation = "div"; break; 
-        case REM: operation = "mod"; break; 
-      }
-      
-      std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
-      std::cout << realIndent << operation << " " << newReg << ", " << secondVal << "\n";
-    };
+const_op: const
+        { $cost[0].setCost(1); }
+        = {
+          $action[1]();
+          $0->setMemVal(false, $1->getMemVal());
+        };
+
+const_op: op
+        { $cost[0].setCost(1); }
+        = {
+          $action[1](indent);
+          $0->setMemVal(false, $1->getMemVal());
+        };
 
 var: VAR
     { $cost[0].setCost(1); }

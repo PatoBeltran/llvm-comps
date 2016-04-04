@@ -86,7 +86,7 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
     for (unsigned k = 0; k < inst.getNumOperands(); k++){
       children = nullptr;
       nodeType = -1;
-      Value *v = inst.getOperand(inst.getNumOperands() - k - 1);      
+      Value *v = inst.getOperand(k);      
       if (LoadInst::classof(v)){
         Value *va = ((LoadInst *)v)->getPointerOperand();
         v = va;
@@ -194,6 +194,10 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
       }
       if (rootType != -1) {
         root = new Node(rootType, children, v, ra);
+
+        //TODO: Delete when not needed
+        errs()<<"\n";
+        printDebugTree(root);
 
         CodeGenerator::generateCode(root);
         delete root;

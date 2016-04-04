@@ -410,10 +410,13 @@ struct burm_state {
   int op;
   NODEPTR node;
   struct burm_state **kids;
-  COST cost[5];
+  COST cost[8];
   struct {
     unsigned burm_stmt:3;
     unsigned burm_op:2;
+    unsigned burm_var_op_const:2;
+    unsigned burm_var_op:2;
+    unsigned burm_const_op:2;
     unsigned burm_var:1;
     unsigned burm_const:1;
   } rule;

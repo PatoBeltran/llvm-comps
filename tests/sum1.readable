@@ -1,0 +1,14 @@
+_inter:
+  mov %rcx, 1
+  add %rcx, %rbx
+  mov %rdx, %rcx
+  add %rdx, 4
+  mov %rsi, 3
+  add %rsi, %rdi
+  mov %r8, %rsi
+  add %r8, 6
+  mov %r9, %rdx
+  add %r9, %r8
+  mov %rax, %r9
+  ret
+
