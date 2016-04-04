@@ -195,10 +195,6 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
       if (rootType != -1) {
         root = new Node(rootType, children, v, ra);
 
-        //TODO: Delete when not needed
-        errs()<<"\n";
-        printDebugTree(root);
-
         CodeGenerator::generateCode(root);
         delete root;
         root = nullptr;

@@ -508,6 +508,8 @@ op: OP(var, const)
         switch ($0->getOpType()) {
           case ADD: operation = "add"; break;
           case MUL: operation = "mul"; break; 
+          case DIV: operation = "div"; break; 
+          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
@@ -531,6 +533,8 @@ op: OP(var, var)
         switch ($0->getOpType()) {
           case ADD: operation = "add"; break;
           case MUL: operation = "mul"; break; 
+          case DIV: operation = "div"; break; 
+          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
@@ -558,6 +562,8 @@ op: OP(var, op)
       switch ($0->getOpType()) {
         case ADD: operation = "add"; break;
         case MUL: operation = "mul"; break; 
+        case DIV: operation = "div"; break; 
+        case REM: operation = "mod"; break; 
       }
       
       std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";

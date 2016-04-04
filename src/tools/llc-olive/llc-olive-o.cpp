@@ -130,10 +130,10 @@ int burm_line_numbers[] = {
   /* 5 */  466,
   /* 6 */  484,
   /* 7 */  499,
-  /* 8 */  521,
-  /* 9 */  545,
-  /* 10 */  569,
-  /* 11 */  575,
+  /* 8 */  523,
+  /* 9 */  549,
+  /* 10 */  575,
+  /* 11 */  581,
 };
 
 #pragma GCC diagnostic push
@@ -503,6 +503,8 @@ int indent)
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
           case MUL: operation = "mul"; break; 
+          case DIV: operation = "div"; break; 
+          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
@@ -529,6 +531,8 @@ int indent)
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
           case MUL: operation = "mul"; break; 
+          case DIV: operation = "div"; break; 
+          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
@@ -559,6 +563,8 @@ int indent)
       switch (_s->node->getOpType()) {
         case ADD: operation = "add"; break;
         case MUL: operation = "mul"; break; 
+        case DIV: operation = "div"; break; 
+        case REM: operation = "mod"; break; 
       }
       
       std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
