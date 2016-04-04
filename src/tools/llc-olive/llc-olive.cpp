@@ -108,8 +108,8 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
           case llvm::Instruction::Add: nodeOpType = ADD; break;
           case llvm::Instruction::Mul: nodeOpType = MUL; break;
           case llvm::Instruction::Sub: nodeOpType = SUB; break;
-          case llvm::Instruction::UDiv: nodeOpType = DIV; break;
-          case llvm::Instruction::URem: nodeOpType = REM; break;
+          case llvm::Instruction::SDiv: nodeOpType = DIV; break;
+          case llvm::Instruction::SRem: nodeOpType = REM; break;
         }
         children = buildSubtreeForInstruction(*v, ra);
         kid = new Node(nodeType, children, v, ra, nodeOpType);
@@ -144,7 +144,7 @@ void printDebugTree(Node *p, int indent=0) {
     for (; i < indent-4; ++i) errs() << " ";
     if (indent-4 > 0) errs() << "|";
     for (; i < indent; ++i) errs() << "-";
-    errs() << "+ " << p->getOp() << "\n";
+    errs() << "+ " << p->getOp() << ": " << p->getOpType() <<"\n";
     
     if (p->getNumKids() > 0) {
       Node **n = p->getKids();

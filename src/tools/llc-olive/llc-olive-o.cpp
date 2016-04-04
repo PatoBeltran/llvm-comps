@@ -165,15 +165,15 @@ int burm_line_numbers[] = {
   /* 3 */  445,
   /* 4 */  460,
   /* 5 */  478,
-  /* 6 */  502,
-  /* 7 */  528,
-  /* 8 */  535,
-  /* 9 */  542,
-  /* 10 */  549,
-  /* 11 */  556,
-  /* 12 */  563,
-  /* 13 */  570,
-  /* 14 */  576,
+  /* 6 */  503,
+  /* 7 */  530,
+  /* 8 */  537,
+  /* 9 */  544,
+  /* 10 */  551,
+  /* 11 */  558,
+  /* 12 */  565,
+  /* 13 */  572,
+  /* 14 */  578,
 };
 
 #pragma GCC diagnostic push
@@ -578,6 +578,7 @@ int indent)
         std::string operation = "";
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
+          case SUB: operation = "sub"; break;
           case MUL: operation = "mul"; break; 
           case DIV: operation = "div"; break; 
           case REM: operation = "mod"; break; 
@@ -606,6 +607,7 @@ int indent)
         std::string operation = "";
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
+          case SUB: operation = "sub"; break;
           case MUL: operation = "mul"; break; 
           case DIV: operation = "div"; break; 
           case REM: operation = "mod"; break; 

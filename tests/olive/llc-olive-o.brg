@@ -486,6 +486,7 @@ op: OP(var_op, const)
         std::string operation = "";
         switch ($0->getOpType()) {
           case ADD: operation = "add"; break;
+          case SUB: operation = "sub"; break;
           case MUL: operation = "mul"; break; 
           case DIV: operation = "div"; break; 
           case REM: operation = "mod"; break; 
@@ -511,6 +512,7 @@ op: OP(var_op_const, var_op_const)
         std::string operation = "";
         switch ($0->getOpType()) {
           case ADD: operation = "add"; break;
+          case SUB: operation = "sub"; break;
           case MUL: operation = "mul"; break; 
           case DIV: operation = "div"; break; 
           case REM: operation = "mod"; break; 
