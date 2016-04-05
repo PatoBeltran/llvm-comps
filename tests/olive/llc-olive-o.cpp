@@ -159,21 +159,21 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  391,
-  /* 1 */  397,
-  /* 2 */  411,
-  /* 3 */  426,
-  /* 4 */  441,
-  /* 5 */  459,
-  /* 6 */  485,
-  /* 7 */  512,
-  /* 8 */  519,
-  /* 9 */  526,
-  /* 10 */  533,
-  /* 11 */  540,
-  /* 12 */  547,
-  /* 13 */  554,
-  /* 14 */  560,
+  /* 0 */  476,
+  /* 1 */  482,
+  /* 2 */  497,
+  /* 3 */  513,
+  /* 4 */  529,
+  /* 5 */  548,
+  /* 6 */  573,
+  /* 7 */  599,
+  /* 8 */  606,
+  /* 9 */  613,
+  /* 10 */  620,
+  /* 11 */  627,
+  /* 12 */  634,
+  /* 13 */  641,
+  /* 14 */  647,
 };
 
 #pragma GCC diagnostic push
@@ -491,6 +491,7 @@ int indent)
         std::cout << realIndent << "pop rbp\n"; 
         std::cout << realIndent << "ret\n";
         std::cout << realIndent << ".cfi_endproc\n";
+        _s->node->freeRegisters();
       
 }
   break;
@@ -509,6 +510,7 @@ int indent)
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
         std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
+        _s->node->freeRegisters();
       
 }
   break;
@@ -522,11 +524,12 @@ int indent)
 
         std::string firstVal = _s->kids[1]->node->getMemVal();
         std::string secondVal = _s->kids[0]->node->getMemVal();
-        _s->node->setMemVal(false, firstVal);        
+        _s->node->setMemVal(false, firstVal);
 
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
         std::cout << realIndent << "mov " << firstVal << ", " << secondVal << "\n";
+        _s->node->freeRegisters();
       
 }
   break;
@@ -537,17 +540,18 @@ int indent)
 
         var_action(_s->kids[0]);
         var_action(_s->kids[1]);
-        _s->node->setMemVal(true);        
+        _s->node->setMemVal(true);
 
         std::string newReg = _s->node->getMemVal();
         std::string firstVal = _s->kids[0]->node->getMemVal();
         std::string secondVal = _s->kids[1]->node->getMemVal();
         
         std::string realIndent = "";
-        for (int i=0; i<indent; i++) realIndent += "  "; 
+        for (int i=0; i<indent; i++) realIndent += "  ";
 
         std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
         std::cout << realIndent << "mov " << secondVal << ", " << newReg << "\n";
+        _s->node->freeRegisters();
       
 }
   break;
@@ -583,14 +587,13 @@ int indent)
           case ADD: operation = "add"; break;
           case SUB: operation = "sub"; break;
           case MUL: operation = "imul"; break; 
-          case DIV: operation = "idiv"; break; 
-          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  "; 
 
         std::cout << realIndent << operation << " " << firstVal << ", " << secondVal << "\n";
+        _s->node->freeRegisters();
       
 }
   break;
@@ -601,7 +604,7 @@ int indent)
 
         var_op_const_action(_s->kids[0],indent);
         var_op_const_action(_s->kids[1],indent);
-        _s->node->setMemVal(true);        
+        _s->node->setMemVal(true);
 
         std::string newReg = _s->node->getMemVal();
         std::string firstVal = _s->kids[0]->node->getMemVal();
@@ -612,8 +615,6 @@ int indent)
           case ADD: operation = "add"; break;
           case SUB: operation = "sub"; break;
           case MUL: operation = "imul"; break; 
-          case DIV: operation = "idiv"; break; 
-          case REM: operation = "mod"; break; 
         }
         
         std::string realIndent = "";
@@ -621,6 +622,7 @@ int indent)
 
         std::cout << realIndent << "mov " << newReg << ", " << firstVal << "\n";
         std::cout << realIndent << operation << " " << newReg << ", " << secondVal << "\n";
+        _s->node->freeRegisters();
       
 }
   break;

@@ -64,9 +64,10 @@ static int compileModule(char **argv, LLVMContext &Context) {
   
   //Tell linker we're using intel syntax
   std::cout << ".intel_syntax noprefix\n";
+  std::cout << ".text\n";
 
   RegisterAllocator *ra = setLocationsToInstructionsInModule(M.get());
-  for (auto I = M->rbegin(), E = M->rend(); I != E; ++I) {
+  for (auto I = M->begin(), E = M->end(); I != E; ++I) {
     compileFunction(*I, ra);
   }
   
@@ -85,7 +86,7 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
     Instruction &inst = cast<Instruction>(v);
     for (unsigned k = 0; k < inst.getNumOperands(); k++){
       children = nullptr;
-      nodeType = -1;
+      nodeType = 0;
       Value *v = inst.getOperand(k);      
       if (LoadInst::classof(v)){
         Value *va = ((LoadInst *)v)->getPointerOperand();
@@ -103,8 +104,6 @@ std::vector<NODEPTR> *buildSubtreeForInstruction(Value &v, RegisterAllocator *ra
           case llvm::Instruction::Add: nodeOpType = ADD; break;
           case llvm::Instruction::Mul: nodeOpType = MUL; break;
           case llvm::Instruction::Sub: nodeOpType = SUB; break;
-          case llvm::Instruction::SDiv: nodeOpType = DIV; break;
-          case llvm::Instruction::SRem: nodeOpType = REM; break;
         }
         children = buildSubtreeForInstruction(*v, ra);
         kid = new Node(nodeType, children, v, ra, nodeOpType);
@@ -135,19 +134,19 @@ static RegisterAllocator *setLocationsToInstructionsInModule(Module *M) {
   return ra;
 }
 
-void printDebugTree(Node *p, int indent=0) {
+void printDebugTree(Node *p, RegisterAllocator *ra, int indent=0) {
   if(p != nullptr) {
     if (indent) errs() << "|"; 
     int i = 0;
     for (; i < indent-4; ++i) errs() << " ";
     if (indent-4 > 0) errs() << "|";
     for (; i < indent; ++i) errs() << "-";
-    errs() << "+ " << p->getOp() << ": " << p->getOpType() <<"\n";
+    errs() << "+ " << p->getOp() << " (" << ra->getIntervalForValue(p->getValue()) << ") "<< ": " << p->getOpType() <<"\n";
     
     if (p->getNumKids() > 0) {
       Node **n = p->getKids();
       for (int i = 0; i < p->getNumKids(); ++i) {
-        printDebugTree(n[i], (indent+4));
+        printDebugTree(n[i], ra, (indent+4));
       }
     }
   }
@@ -157,7 +156,6 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
   std::string funcName(func.getName());
   
   //Function text section
-  std::cout << ".text\n";
   std::cout << "    .globl _" << funcName << "\n";
   std::cout << "    .type _" << funcName << ", @function\n";
 
@@ -201,11 +199,6 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
       }
       if (rootType != -1) {
         root = new Node(rootType, children, v, ra);
-
-        //TODO: Delete when not needed
-        errs()<<"\n";
-        printDebugTree(root);
-
         CodeGenerator::generateCode(root);
         delete root;
         root = nullptr;
@@ -214,7 +207,7 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
   }
   
   //We tell the linker the size of the function
-  std::cout << "  _" << funcName << ".end:\n";
+  std::cout << "\n  _" << funcName << ".end:\n";
   std::cout << "    .size _" << funcName << ", .-_" << funcName << "\n";
   std::cout << "\n";
 }

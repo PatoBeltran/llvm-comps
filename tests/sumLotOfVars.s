@@ -6,79 +6,79 @@
     .cfi_startproc
     push rbp
     mov rbp, rsp
-    mov rsp, 10
-    mov rbp, 5
-    mov rax, 4
-    mov rbx, rsp
-    add rbx, rbp
-    mov rcx, rbx
-    mov rdx, rax
-    add rdx, 3
-    mov rdi, rdx
-    mov r8, rsp
-    mov rsi, r8
-    mov r9, rbp
-    add r9, rsi
-    mov r10, r9
-    mov r11, rsp
-    add r11, 3
-    mov r12, r11
-    mov r12, rbp
-    imul r12, 2
-    mov qword ptr [rbp - 16], r12
-    mov qword ptr [rbp - 24], rdi
-    idiv qword ptr [rbp - 24], r10
-    mov qword ptr [rbp - 32], qword ptr [rbp - 24]
-    mov qword ptr [rbp - 40], rax
-    imul qword ptr [rbp - 40], rbp
-    mov qword ptr [rbp - 48], qword ptr [rbp - 40]
-    mov qword ptr [rbp - 56], 10
-    mod qword ptr [rbp - 56], rbp
-    mov qword ptr [rbp - 64], qword ptr [rbp - 56]
-    mov qword ptr [rbp - 72], r10
-    sub qword ptr [rbp - 72], rsp
-    mov qword ptr [rbp - 80], qword ptr [rbp - 72]
-    mov qword ptr [rbp - 88], 4
-    imul qword ptr [rbp - 88], rbp
-    mov qword ptr [rbp - 96], qword ptr [rbp - 88]
-    mov qword ptr [rbp - 104], 10
-    idiv qword ptr [rbp - 104], rax
-    mov qword ptr [rbp - 112], qword ptr [rbp - 104]
-    mov qword ptr [rbp - 120], rcx
-    add qword ptr [rbp - 120], rax
-    mov r13, qword ptr [rbp - 120]
-    add r13, rsp
+    mov rbx, 10
+    mov r15, 5
+    mov r12, 4
+    mov r13, rbx
+    add r13, r15
     mov r14, r13
-    add r14, rbp
-    mov rsp, rdi
-    imul rsp, rsi
-    mov rbp, rsp
-    idiv rbp, r10
-    mov rax, r14
-    sub rax, rbp
-    mov rbx, qword ptr [rbp - 8]
-    add rbx, qword ptr [rbp - 16]
-    mov rcx, qword ptr [rbp - 32]
-    sub rcx, qword ptr [rbp - 48]
-    mov rdx, rbx
-    imul rdx, rcx
-    mov rdi, qword ptr [rbp - 64]
-    add rdi, qword ptr [rbp - 80]
-    mov rsi, rdi
-    add rsi, qword ptr [rbp - 96]
-    mov r8, rsi
-    sub r8, qword ptr [rbp - 112]
-    mov r9, rdx
-    imul r9, r8
-    mov r11, r9
-    add r11, r10
-    mov r12, rax
-    add r12, r11
-    mov r14, r12
-    add r14, r13
-    mov rbp, r14
-    add rbp, rsp
-    mov rax, rbp
+    mov r13, r12
+    add r13, 3
+    mov r10, r13
+    mov r13, rbx
+    mov r11, r13
+    mov r13, r15
+    add r13, r11
+    mov r9, r13
+    mov r13, rbx
+    add r13, 3
+    mov r8, r13
+    mov r13, r15
+    imul r13, 2
+    mov rcx, r13
+    mov r13, r10
+    add r13, r9
+    mov rdx, r13
+    mov r13, r12
+    imul r13, r15
+    mov rdi, r13
+    mov r13, 10
+    sub r13, r15
+    mov rsi, r13
+    mov r13, r9
+    sub r13, rbx
+    mov qword ptr [rbp - 8], r13
+    mov r13, 4
+    imul r13, r15
+    mov qword ptr [rbp - 16], r13
+    mov r13, 10
+    imul r13, r12
+    mov qword ptr [rbp - 24], r13
+    mov r12, r14
+    add r12, r12
+    mov rbx, r12
+    add rbx, rbx
+    mov r15, rbx
+    add r15, r15
+    mov rbx, r10
+    imul rbx, r11
+    mov r12, rbx
+    add r12, r9
+    mov rbx, r15
+    sub rbx, r12
+    mov r15, r8
+    add r15, rcx
+    mov r12, rdx
+    sub r12, rdi
+    mov r13, r15
+    imul r13, r12
+    mov r15, rsi
+    add r15, qword ptr [rbp - 8]
+    mov r12, r15
+    add r12, qword ptr [rbp - 16]
+    mov r15, r12
+    sub r15, qword ptr [rbp - 24]
+    mov r12, r13
+    imul r12, r15
+    mov r15, r12
+    add r15, r15
+    mov r12, rbx
+    add r12, r15
+    mov rbx, r12
+    add rbx, rbx
+    mov r15, rbx
+    add r15, r15
+    mov rax, r15
     mov rsp, rbp
     pop rbp
     ret

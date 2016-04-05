@@ -46,7 +46,10 @@ public:
   Location(SPILL),
   _offset(SUPPORTED_OFFSET_DATATYPE*offset) { }
   
-  static bool classof(Location *l) { return l->isTypeOfClass(SPILL); }
+  static bool classof(Location *l) { 
+    if (l != nullptr) return l->isTypeOfClass(SPILL); 
+    return false;
+    }
   static bool classof(Location l) { return l.isTypeOfClass(SPILL); }
   int getOffset() { return _offset / SUPPORTED_OFFSET_DATATYPE; }
   
@@ -84,7 +87,10 @@ public:
   
   Register(int name, int type) : Location(REGISTER), _name(name), _type(type) { }
 
-  static bool classof(Location *l) { return l->isTypeOfClass(REGISTER); }
+  static bool classof(Location *l) { 
+    if (l != nullptr) return l->isTypeOfClass(REGISTER);
+    return false;
+  }
   static bool classof(Location l) { return l.isTypeOfClass(REGISTER); }
   int getType() { return _type; };
   
@@ -139,22 +145,96 @@ public:
   }
 
   static bool compareStart(LifeInterval *a, LifeInterval *b) { return a->getStart() < b->getStart(); }
-  static bool compareEnd(LifeInterval *a, LifeInterval *b) { return b->getEnd() < b->getEnd(); }
+  static bool compareEnd(LifeInterval *a, LifeInterval *b) { return a->getEnd() < b->getEnd(); }
 
   bool operator<(const LifeInterval& b) { return _interval.first < b.getStart(); }
   bool operator>(const LifeInterval& b) { return _interval.first > b.getStart(); }
 };
 
+class FreeRegisterManager {
+  const int NOT_AVAILABLE_REGISTER_NUMBER = 3;
+  
+  int _num_regs;
+  std::set<Register *>_special;
+  std::set<Register *>_callee_save;
+  std::set<Register *>_caller_save;
+  std::set<Register *>_argument;
+public:
+  FreeRegisterManager(int n) : _num_regs(n) {
+    Register *reg;
+    for (int i = NOT_AVAILABLE_REGISTER_NUMBER; i<(_num_regs+NOT_AVAILABLE_REGISTER_NUMBER); i++) {
+      switch (i) {
+        case Register::RSP: case Register::RBP:
+          reg = new Register(i, Register::SPECIAL);
+          _special.insert(reg);
+          break;
+        case Register::RBX: case Register::R12: 
+        case Register::R13: case Register::R14: 
+        case Register::R15: 
+          reg = new Register(i, Register::CALLEE_SAVE);
+          _callee_save.insert(reg);
+          break;
+        case Register::RDI: case Register::RSI: 
+        case Register::RDX: case Register::RCX: 
+        case Register::R8: case Register::R9:
+          reg = new Register(i, Register::ARGUMENT);
+          _argument.insert(reg);
+          break;
+        default:
+          reg = new Register(i, Register::CALLER_SAVE);
+          _caller_save.insert(reg);
+          break;
+      }
+    }
+  }
+  int availableRegistersNum() { return _callee_save.size() + _caller_save.size() + _argument.size(); }
+
+  Register *getAvailableRegister(int type=-1) {
+    if (availableRegistersNum() > 0) {
+      switch (type) {
+        case Register::SPECIAL: if (_special.size() > 0) return *(_special.begin()); break;
+        case Register::CALLEE_SAVE: if (_callee_save.size() > 0) return *(_callee_save.begin()); break;
+        case Register::CALLER_SAVE: if (_caller_save.size() > 0) return *(_caller_save.begin()); break;
+        case Register::ARGUMENT: if (_argument.size() > 0) return *(_argument.begin()); break;
+      }
+      if (_callee_save.size() > 0) return *(_callee_save.begin());
+      if (_caller_save.size() > 0) return *(_caller_save.begin());
+      return *(_argument.begin());
+    }
+    return nullptr;
+  }
+
+  void allocateRegister(Register *r) {
+    switch(r->getType()) {
+      case Register::SPECIAL: _special.erase(r); break;
+      case Register::CALLEE_SAVE: _callee_save.erase(r); break;
+      case Register::CALLER_SAVE: _caller_save.erase(r); break;
+      case Register::ARGUMENT: _argument.erase(r); break;
+    }
+  }
+  
+  void setAsFree(Register *r) {
+    switch(r->getType()) {
+      case Register::SPECIAL: _special.insert(r); break;
+      case Register::CALLEE_SAVE: _callee_save.insert(r); break;
+      case Register::CALLER_SAVE: _caller_save.insert(r); break;
+      case Register::ARGUMENT: _argument.insert(r); break;
+    }
+  }
+};
+
 class RegisterAllocator {
+  const unsigned MAX_REGS_FOR_ARGUMENTS = 6;
   const unsigned MAX_REGS_TO_USE = 13;
   const unsigned MIN_REGS_TO_USE = 2;
   unsigned _num_regs;
 
   std::map<const llvm::Value *, int>_instructionLocation;
   std::map<const llvm::Value *, LifeInterval *>_lifeIntervals;
+
+  FreeRegisterManager *_freeRegisters;
   std::vector<LifeInterval *>_active;
-  std::vector<Register *>freeRegisters;
-  std::map<const llvm::Value *, Location *>_currentLocations;
+  std::map<const llvm::Value *, Location *>_symbolTable;
 
   void addRange(const llvm::Value *v, int start, int end) {
     if (_lifeIntervals.find(v) != _lifeIntervals.end()) {
@@ -166,8 +246,8 @@ class RegisterAllocator {
   }
 
   int getNextMemoryOffset() {
-    int currentMaxOffset = 0; 
-    for(auto it = _currentLocations.begin(); it != _currentLocations.end(); ++it) {
+    int currentMaxOffset = 0;
+    for(auto it = _symbolTable.begin(); it != _symbolTable.end(); ++it) {
       if (Memory::classof(&(*(it->second)))) {
         int offset = ((Memory *)it->second)->getOffset();
         if (currentMaxOffset < offset) currentMaxOffset = offset;
@@ -176,35 +256,37 @@ class RegisterAllocator {
     return ++currentMaxOffset;
   }
 
-  void expireOldIntervals(LifeInterval *li) {
-    std::vector<LifeInterval *> orderedActive(_active);
-    std::sort(orderedActive.begin(), orderedActive.end(), LifeInterval::compareEnd);
+  void expireOldIntervals(LifeInterval *i) {
+    for (auto active_iterator = _active.begin(); active_iterator != _active.end(); ){
+      LifeInterval *j = *active_iterator;
+      
+      if (j->getEnd() >= i->getStart()) return;
 
-    for (auto j = _active.begin(); j != _active.end(); ){
-      LifeInterval *i = *j;
-      if (i->getEnd() >= li->getStart()) return;
-      j = _active.erase(j);
+      active_iterator = _active.erase(active_iterator);
 
-      Register *r = (Register *)_currentLocations[i->getValue()];
-      _currentLocations.erase(i->getValue());
-      freeRegisters.push_back(r);
+      Location *l = _symbolTable[j->getValue()];
+      _symbolTable.erase(j->getValue());
+      if (Register::classof(l)) {
+        _freeRegisters->setAsFree((Register *)l);
+      }
     }
   }
 
-  void spillAtInterval(LifeInterval *li) {
+  void spillAtInterval(LifeInterval *i) {
     LifeInterval *spill = _active.back();
+    
     Memory *sp = new Memory(getNextMemoryOffset());
     
-    if (spill->getEnd() > li->getEnd()) {
-      Register *r = (Register *)_currentLocations[spill->getValue()];
-      _currentLocations.erase(spill->getValue());
+    if (spill->getEnd() > i->getEnd()) {
+      Location *l = _symbolTable[spill->getValue()];
+      _symbolTable.erase(spill->getValue());
       _active.pop_back();
-      _currentLocations[li->getValue()] = r;
-      _active.push_back(li);
+      _symbolTable[i->getValue()] = l;
+      _active.push_back(i);
       std::sort(_active.begin(), _active.end(), LifeInterval::compareEnd);
-      _currentLocations[spill->getValue()] = sp;
+      _symbolTable[spill->getValue()] = sp;
     } else {
-      _currentLocations[li->getValue()] = sp;
+      _symbolTable[i->getValue()] = sp;
     }
   }
   
@@ -212,12 +294,13 @@ class RegisterAllocator {
     if (_lifeIntervals.find(v) != _lifeIntervals.end()) {
       LifeInterval *li = _lifeIntervals[v];
       expireOldIntervals(li);
+      
       if (_active.size() >= _num_regs) {
         spillAtInterval(li);
-      } else if(freeRegisters.size() > 0) {
-        Register *r = freeRegisters.at(0);
-        freeRegisters.erase( freeRegisters.begin() );
-        _currentLocations[li->getValue()] = r;
+      } else if(_freeRegisters->availableRegistersNum() > 0) {
+        Register *r = _freeRegisters->getAvailableRegister();
+        _freeRegisters->allocateRegister(r);
+        _symbolTable[li->getValue()] = r;
         _active.push_back(li);
         std::sort(_active.begin(), _active.end(), LifeInterval::compareEnd);
       }
@@ -226,37 +309,39 @@ class RegisterAllocator {
 public:
   RegisterAllocator(unsigned num_regs) {
     _num_regs = std::min(std::max(num_regs, MIN_REGS_TO_USE), MAX_REGS_TO_USE);
-    Register *reg;
-    for (unsigned i = 0; i<(_num_regs+2); i++) {
-      switch (i) {
-        case Register::RSP: case Register::RBP:
-          reg = new Register(i, Register::SPECIAL);
-          break;
-        case Register::RBX: case Register::R12: 
-        case Register::R13: case Register::R14: 
-        case Register::R15: 
-          reg = new Register(i, Register::CALLEE_SAVE);
-          break;
-        case Register::RDI: case Register::RSI: 
-        case Register::RDX: case Register::RCX: 
-        case Register::R8: case Register::R9:
-          reg = new Register(i, Register::ARGUMENT);
-          break;
-        default:
-          reg = new Register(i, Register::CALLER_SAVE);
-          break;
-      }
-      freeRegisters.push_back(reg);
-    }
+    _freeRegisters = new FreeRegisterManager(_num_regs);
   }
 
   void addInstructionToLocation(const llvm::Value *inst, int loc) {
     _instructionLocation[inst] = loc;
   }
 
+  void freeRegistersNotUsedAnymoreAfterValue(const llvm::Value *v) {
+    int location = _instructionLocation[v];
+    for (auto active_iterator = _active.begin(); active_iterator != _active.end(); ) {
+      LifeInterval *j = *active_iterator;
+
+      if (j->getEnd() > location) return;
+      active_iterator = _active.erase(active_iterator);
+      
+      Location *l = _symbolTable[j->getValue()];
+      _symbolTable.erase(j->getValue());
+      if (Register::classof(l)) {
+        _freeRegisters->setAsFree((Register *)l);
+      }
+    }
+  }
+
+  std::string getIntervalForValue(const llvm::Value *v) {
+    if (_lifeIntervals.find(v) != _lifeIntervals.end()) {    
+      return std::to_string(_lifeIntervals[v]->getStart()) + ", " +std::to_string(_lifeIntervals[v]->getEnd());
+    }
+    return "";
+  }
+
   std::string getLocationNameForValue(const llvm::Value *v) {
-    if (_currentLocations.find(v) != _currentLocations.end()) {
-      return _currentLocations[v]->getName();
+    if (_symbolTable.find(v) != _symbolTable.end()) {
+      return _symbolTable[v]->getName();
     }
     linearScanForValue(v);
     return getLocationNameForValue(v);
@@ -297,7 +382,7 @@ class Node {
 
   unsigned _opType;
 public:
-  Node (unsigned op, std::vector<Node *> *kids, const llvm::Value *value, RegisterAllocator *ra, unsigned opT=-1) 
+  Node (unsigned op, std::vector<Node *> *kids, const llvm::Value *value, RegisterAllocator *ra, unsigned opT=0) 
     : _op(op),
     _state(0),
     _value(value),
@@ -330,6 +415,7 @@ public:
     }
   }
 
+  void freeRegisters() { _ra->freeRegistersNotUsedAnymoreAfterValue(_value); }
 	StatePtr getState() { return _state; }
 	void setState(StatePtr state) { _state = state; }
 	const llvm::Value* getValue() { return _value; }
@@ -363,8 +449,7 @@ static COST COST_ZERO     = COST(0);
 /** ================ Operations ================ **/
 
 enum {
-  CONST=0, VAR, RET, STORE, OP, ADD, MUL, SUB,
-  DIV, REM
+  CONST=0, VAR, RET, STORE, OP, ADD, MUL, SUB
 };
 
 /** =========================================== **/

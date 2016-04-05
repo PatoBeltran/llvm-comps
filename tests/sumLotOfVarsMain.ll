@@ -1,4 +1,4 @@
-; ModuleID = 'sumLotOfVars.c'
+; ModuleID = 'sumLotOfVarsMain.c'
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.11.0"
 
@@ -104,6 +104,17 @@ define i64 @inter(i64 %p, i64 %q, i64 %r) #0 {
   %65 = load i64, i64* %3, align 8
   %66 = add nsw i64 %64, %65
   ret i64 %66
+}
+
+; Function Attrs: nounwind ssp uwtable
+define i32 @main() #0 {
+  %1 = alloca i32, align 4
+  %a = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  store i32 10, i32* %a, align 4
+  %2 = load i32, i32* %a, align 4
+  %3 = add nsw i32 3, %2
+  ret i32 %3
 }
 
 attributes #0 = { nounwind ssp uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="core2" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+ssse3" "unsafe-fp-math"="false" "use-soft-float"="false" }

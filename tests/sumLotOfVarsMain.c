@@ -18,4 +18,8 @@ long long int inter(long long p, long long q, long long r) {
   return (((d + c) + a) + b) - ((e * f) + g) + ((h+i)*(j-k)*((l+m+n)-o)+p)+q+r;
 }
 
+int main () {
+  int a = 10;
+  return 3+a;
+}
 

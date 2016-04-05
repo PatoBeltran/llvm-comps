@@ -12,9 +12,9 @@ define i64 @inter(i64 %a, i64 %b) #0 {
   %4 = mul nsw i64 1, %3
   %5 = add nsw i64 %4, 4
   %6 = load i64, i64* %2, align 8
-  %7 = srem i64 3, %6
+  %7 = mul nsw i64 3, %6
   %8 = sub nsw i64 %7, 6
-  %9 = sdiv i64 %5, %8
+  %9 = sub nsw i64 %5, %8
   ret i64 %9
 }
 
