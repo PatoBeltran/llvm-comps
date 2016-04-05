@@ -38,51 +38,74 @@ public:
   virtual std::string getName() { return ""; };
 };
 
-class Spill : public Location {
+class Memory : public Location {
   const unsigned SUPPORTED_OFFSET_DATATYPE = 8; 
   int _offset;
 public:
-  Spill(int offset) : 
+  Memory(int offset) : 
   Location(SPILL),
-  _offset(SUPPORTED_OFFSET_DATATYPE*offset) 
-  { }
-
+  _offset(SUPPORTED_OFFSET_DATATYPE*offset) { }
+  
   static bool classof(Location *l) { return l->isTypeOfClass(SPILL); }
   static bool classof(Location l) { return l.isTypeOfClass(SPILL); }
   int getOffset() { return _offset / SUPPORTED_OFFSET_DATATYPE; }
+  
   std::string getName() {
-    return (_offset)+"(%rbp)";
+    return "qword ptr [rbp - "+std::to_string(_offset)+"]";
   }
 };
 
 class Register : public Location {
+  int _name;
   int _type;
 public:
+  /**
+    Names for all of the x86 64 bits registers.
+  **/
   enum {
-    RBX=0, RCX=1, RDX=2, RDI=3, RSI=4,
-    R8=5, R9=6, R10=7, R11=8, R12=9, R13=10, R14=11, R15=12
+    RSP, RBP, RAX, RBX, RCX, RDX, RDI, RSI,
+    R8, R9, R10, R11, R12, R13, R14, R15
   };
-  Register(int type) : Location(REGISTER), _type(type) { }
+  
+  /**
+    CALLEE_SAVE: function callee (call receiver) must save/restore these 
+                 register when using them. Caller expects callee not 
+                 to change them.
+    
+    CALLER_SAVE: function caller must save/restore these registers when 
+                 live across call so that callee is free to use them.
+    
+    SPECIAL:     don't allocate them. Used for everything to work.
+    
+    ARGUMENT:    function arguments should use this. They should also 
+                 be threated as caller-save.
+  **/
+  enum { CALLEE_SAVE, CALLER_SAVE, SPECIAL, ARGUMENT };
+  
+  Register(int name, int type) : Location(REGISTER), _name(name), _type(type) { }
 
   static bool classof(Location *l) { return l->isTypeOfClass(REGISTER); }
   static bool classof(Location l) { return l.isTypeOfClass(REGISTER); }
-  
   int getType() { return _type; };
+  
   std::string getName() {
-    switch (_type) {
-      case RBX: return "%rbx";
-      case RCX: return "%rcx";
-      case RDX: return "%rdx";
-      case RDI: return "%rdi";
-      case RSI: return "%rsi";
-      case R8: return "%r8";
-      case R9: return "%r9";
-      case R10: return "%r10";
-      case R11: return "%r11";
-      case R12: return "%r12";
-      case R13: return "%r13";
-      case R14: return "%r14";
-      case R15: return "%r15";
+    switch (_name) {
+      case RSP: return "rsp";
+      case RBP: return "rbp";
+      case RAX: return "rax";
+      case RBX: return "rbx";
+      case RCX: return "rcx";
+      case RDX: return "rdx";
+      case RDI: return "rdi";
+      case RSI: return "rsi";
+      case R8: return "r8";
+      case R9: return "r9";
+      case R10: return "r10";
+      case R11: return "r11";
+      case R12: return "r12";
+      case R13: return "r13";
+      case R14: return "r14";
+      case R15: return "r15";
     }
     return "";
   }
@@ -128,35 +151,29 @@ class RegisterAllocator {
   unsigned _num_regs;
 
   std::map<const llvm::Value *, int>_instructionLocation;
-  std::map<const llvm::Value *, LifeInterval *>_unhandledLifeIntervals;
+  std::map<const llvm::Value *, LifeInterval *>_lifeIntervals;
   std::vector<LifeInterval *>_active;
   std::vector<Register *>freeRegisters;
   std::map<const llvm::Value *, Location *>_currentLocations;
 
   void addRange(const llvm::Value *v, int start, int end) {
-    if (_unhandledLifeIntervals.find(v) != _unhandledLifeIntervals.end()) {
-      _unhandledLifeIntervals[v]->addRange(start, end);
+    if (_lifeIntervals.find(v) != _lifeIntervals.end()) {
+      _lifeIntervals[v]->addRange(start, end);
     } else {
       LifeInterval *li = new LifeInterval(v, start, end);
-      _unhandledLifeIntervals[v] = li;
+      _lifeIntervals[v] = li;
     }
   }
 
-  int getNextSpillOffset() {
+  int getNextMemoryOffset() {
     int currentMaxOffset = 0; 
     for(auto it = _currentLocations.begin(); it != _currentLocations.end(); ++it) {
-      if (Spill::classof(&(*(it->second)))) {
-        int offset = ((Spill *)it->second)->getOffset();
+      if (Memory::classof(&(*(it->second)))) {
+        int offset = ((Memory *)it->second)->getOffset();
         if (currentMaxOffset < offset) currentMaxOffset = offset;
       }
     }
-    return currentMaxOffset++;
-  }
-
-  void setLastIntervalFrom(const llvm::Value *v, int start) {
-    if (_unhandledLifeIntervals.find(v) != _unhandledLifeIntervals.end()) {
-      _unhandledLifeIntervals[v]->changeStart(start);
-    }
+    return ++currentMaxOffset;
   }
 
   void expireOldIntervals(LifeInterval *li) {
@@ -176,7 +193,7 @@ class RegisterAllocator {
 
   void spillAtInterval(LifeInterval *li) {
     LifeInterval *spill = _active.back();
-    Spill *sp = new Spill(getNextSpillOffset());
+    Memory *sp = new Memory(getNextMemoryOffset());
     
     if (spill->getEnd() > li->getEnd()) {
       Register *r = (Register *)_currentLocations[spill->getValue()];
@@ -192,8 +209,8 @@ class RegisterAllocator {
   }
   
   void linearScanForValue(const llvm::Value *v) {
-    if (_unhandledLifeIntervals.find(v) != _unhandledLifeIntervals.end()) {
-      LifeInterval *li = _unhandledLifeIntervals[v];
+    if (_lifeIntervals.find(v) != _lifeIntervals.end()) {
+      LifeInterval *li = _lifeIntervals[v];
       expireOldIntervals(li);
       if (_active.size() >= _num_regs) {
         spillAtInterval(li);
@@ -209,8 +226,26 @@ class RegisterAllocator {
 public:
   RegisterAllocator(unsigned num_regs) {
     _num_regs = std::min(std::max(num_regs, MIN_REGS_TO_USE), MAX_REGS_TO_USE);
-    for (unsigned i = 0; i<_num_regs; i++) {
-      Register *reg = new Register(i);
+    Register *reg;
+    for (unsigned i = 0; i<(_num_regs+2); i++) {
+      switch (i) {
+        case Register::RSP: case Register::RBP:
+          reg = new Register(i, Register::SPECIAL);
+          break;
+        case Register::RBX: case Register::R12: 
+        case Register::R13: case Register::R14: 
+        case Register::R15: 
+          reg = new Register(i, Register::CALLEE_SAVE);
+          break;
+        case Register::RDI: case Register::RSI: 
+        case Register::RDX: case Register::RCX: 
+        case Register::R8: case Register::R9:
+          reg = new Register(i, Register::ARGUMENT);
+          break;
+        default:
+          reg = new Register(i, Register::CALLER_SAVE);
+          break;
+      }
       freeRegisters.push_back(reg);
     }
   }
@@ -228,63 +263,15 @@ public:
   }
 
   void buildIntervalsForFunction(llvm::Function &f) {
-    std::set<const llvm::Value *>live = {};
-    std::map< llvm::BasicBlock *, std::set<const llvm::Value *> >liveIn;
-
-    llvm::Function::BasicBlockListType &basic_blocks = f.getBasicBlockList();
-    for (auto bb = basic_blocks.rbegin(), bg = basic_blocks.rend(); bb != bg; ++bb) {
-      live.clear();
+    for (auto bb = f.begin(), be = f.end(); bb != be; ++bb) {
       llvm::BasicBlock &BB = *bb;
-      llvm::TerminatorInst *TI = BB.getTerminator();
-      if (TI) {
-        for (llvm::BasicBlock *succ : TI->successors()) {
-          std::set<const llvm::Value *> li = liveIn[succ];
-          if (!li.empty()) {
-            live.insert(std::begin(li), std::end(li));
-          }
-          //TODO: Should this be reverse order?
-          for (auto II = succ->begin(), IE = succ->end(); II != IE; ++II) {
-            llvm::Instruction &sin = *II;
-            if (llvm::PHINode::classof(&sin)){
-              llvm::PHINode *PN = llvm::cast<llvm::PHINode>(&sin);
-              const llvm::Value *v = PN->getIncomingValueForBlock(&BB);
-              if (v != nullptr) live.insert(v);
-            }
-          }
-        }
-      }
-
-      for (const llvm::Value *v : live) {
-        llvm::Instruction &first_i = *(BB.begin());
-        llvm::Instruction &last_i = *(BB.end());
-        addRange(v, _instructionLocation[&first_i], _instructionLocation[&last_i]);
-      }
-
-      for (auto i = BB.rbegin(), ib = BB.rend(); i != ib; ++i) {
+      for (auto i = BB.begin(), ie = BB.end(); i != ie; ++i) {
         llvm::Instruction &inst = *i;
-        setLastIntervalFrom(&inst, _instructionLocation[&inst]);
-        live.erase(&inst);
-        for (unsigned k = 0; k < inst.getNumOperands(); k++){
-          const llvm::Value *v = inst.getOperand(k);
-          llvm::Instruction &first_i = *(BB.begin());
-          addRange(v, _instructionLocation[&first_i], _instructionLocation[&inst]);
-          live.insert(v);
-        }
-        if (llvm::PHINode::classof(&inst)) {
-          live.erase(&inst);
+        if (inst.getNumUses() > 0) {
+          const llvm::Value *v = inst.user_back();
+          addRange(&inst, _instructionLocation[&inst], _instructionLocation[v]);
         }
       }
-
-      //TODO
-      //llvm::LoopInfo &li = llvm::getAnalysis<LoopInfo>(f);
-      //if (li.isLoopHeader(BB)) {
-      //}
-      //if b is loop header then
-      //loopEnd = last block of the loop starting at b 
-      //for each opd in live do
-      //intervals[opd].addRange(b.from, loopEnd.to) 
-
-      liveIn[&BB] = live;
     }
   }
 };
@@ -376,16 +363,8 @@ static COST COST_ZERO     = COST(0);
 /** ================ Operations ================ **/
 
 enum {
-  CONST=0,
-  VAR,
-  RET,
-  STORE,
-  OP,
-  ADD,
-  MUL,
-  SUB,
-  DIV,
-  REM
+  CONST=0, VAR, RET, STORE, OP, ADD, MUL, SUB,
+  DIV, REM
 };
 
 /** =========================================== **/

@@ -1,5 +1,0 @@
-_inter:
-  mov %rbx, 10
-  mov %rax, %rbx
-  ret
-

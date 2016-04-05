@@ -26,9 +26,6 @@ OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"), cl:
 static cl::opt<unsigned>
 AvailableRegisters("num_regs", cl::desc("Available number of registers"), cl::init(16u), cl::Optional);
 
-//TODO: DELETE FROM HERE
-class RegisterAllocator;
-
 static int compileModule(char **, LLVMContext &);
 static void compileFunction(Function &, RegisterAllocator *);
 static RegisterAllocator *setLocationsToInstructionsInModule(Module *);
@@ -64,6 +61,9 @@ static int compileModule(char **argv, LLVMContext &Context) {
   //  for (Module::const_global_iterator I = M->global_begin(), E = M->global_end();
   //      I != E; ++I) {
   //  }
+  
+  //Tell linker we're using intel syntax
+  std::cout << ".intel_syntax noprefix\n";
 
   RegisterAllocator *ra = setLocationsToInstructionsInModule(M.get());
   for (auto I = M->rbegin(), E = M->rend(); I != E; ++I) {
@@ -154,9 +154,18 @@ void printDebugTree(Node *p, int indent=0) {
 }
 
 static void compileFunction(Function &func, RegisterAllocator *ra) {
-  //Function name label
   std::string funcName(func.getName());
-  std::cout << "_" << funcName << ":\n";
+  
+  //Function text section
+  std::cout << ".text\n";
+  std::cout << "    .globl _" << funcName << "\n";
+  std::cout << "    .type _" << funcName << ", @function\n";
+
+  //Function name label
+  std::cout << "  _" << funcName << ":\n";
+  std::cout << "    .cfi_startproc\n";
+  std::cout << "    push rbp\n";
+  std::cout << "    mov rbp, rsp\n";
 
   //Prework for register allocation
   ra->buildIntervalsForFunction(func);
@@ -203,5 +212,9 @@ static void compileFunction(Function &func, RegisterAllocator *ra) {
       }
     }
   }
+  
+  //We tell the linker the size of the function
+  std::cout << "  _" << funcName << ".end:\n";
+  std::cout << "    .size _" << funcName << ", .-_" << funcName << "\n";
   std::cout << "\n";
 }

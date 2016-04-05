@@ -1,6 +1,0 @@
-_sum:
-  mov %rcx, %rbx
-  add %rcx, 53
-  mov %rax, %rcx
-  ret
-

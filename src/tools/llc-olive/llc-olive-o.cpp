@@ -159,21 +159,21 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  412,
-  /* 1 */  418,
-  /* 2 */  430,
-  /* 3 */  445,
-  /* 4 */  460,
-  /* 5 */  478,
-  /* 6 */  503,
-  /* 7 */  530,
-  /* 8 */  537,
-  /* 9 */  544,
-  /* 10 */  551,
-  /* 11 */  558,
-  /* 12 */  565,
-  /* 13 */  572,
-  /* 14 */  578,
+  /* 0 */  391,
+  /* 1 */  397,
+  /* 2 */  411,
+  /* 3 */  426,
+  /* 4 */  441,
+  /* 5 */  459,
+  /* 6 */  485,
+  /* 7 */  512,
+  /* 8 */  519,
+  /* 9 */  526,
+  /* 10 */  533,
+  /* 11 */  540,
+  /* 12 */  547,
+  /* 13 */  554,
+  /* 14 */  560,
 };
 
 #pragma GCC diagnostic push
@@ -486,9 +486,11 @@ int indent)
         
         std::string realIndent = "";
         for (int i=0; i<indent; i++) realIndent += "  ";
-        std::cout << realIndent << "mov %rax, " << _s->kids[0]->node->getMemVal() << "\n";
-        
+        std::cout << realIndent << "mov rax, " << _s->kids[0]->node->getMemVal() << "\n";
+        std::cout << realIndent << "mov rsp, rbp\n";
+        std::cout << realIndent << "pop rbp\n"; 
         std::cout << realIndent << "ret\n";
+        std::cout << realIndent << ".cfi_endproc\n";
       
 }
   break;
@@ -575,12 +577,13 @@ int indent)
         std::string secondVal = _s->kids[1]->node->getMemVal();
         _s->node->setMemVal(false, firstVal);        
         
+        //As a general rule of thumb, most instructions support only one operand (m) not two.
         std::string operation = "";
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
           case SUB: operation = "sub"; break;
-          case MUL: operation = "mul"; break; 
-          case DIV: operation = "div"; break; 
+          case MUL: operation = "imul"; break; 
+          case DIV: operation = "idiv"; break; 
           case REM: operation = "mod"; break; 
         }
         
@@ -608,8 +611,8 @@ int indent)
         switch (_s->node->getOpType()) {
           case ADD: operation = "add"; break;
           case SUB: operation = "sub"; break;
-          case MUL: operation = "mul"; break; 
-          case DIV: operation = "div"; break; 
+          case MUL: operation = "imul"; break; 
+          case DIV: operation = "idiv"; break; 
           case REM: operation = "mod"; break; 
         }
         
@@ -1079,7 +1082,7 @@ void CodeGenerator::generateCode(NODEPTR p) {
 	if (p != nullptr && burm_label(p) == 0)
 		std::cerr << "No match found for the node provided.\n";
 	else if (p != nullptr) {
-		stmt_action(p->getState(), 1);
+		stmt_action(p->getState(), 2);
 	}
 }
 

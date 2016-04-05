@@ -8,5 +8,6 @@ services:
       - ./obj:/var/Debug+Asserts
     command: ['/bin/bash']
     environment:
+      ROOT: '/var'
       OBJ_ROOT: '/var/Debug+Asserts'
       SRC_ROOT: '/var/llvm'
