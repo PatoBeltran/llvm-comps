@@ -6,17 +6,11 @@
     .cfi_startproc
     push rbp
     mov rbp, rsp
-    mov rbx, 1
-    add rbx, rbx
-    mov r12, rbx
-    add r12, 4
-    mov rbx, 3
-    add rbx, rbx
-    mov r15, rbx
-    add r15, 6
+    mov rbx, 10
+    mov r15, 5
+    mov r12, r15
     mov rbx, r12
-    add rbx, r15
-    mov rax, rbx
+    mov rax, r15
     mov rsp, rbp
     pop rbp
     ret

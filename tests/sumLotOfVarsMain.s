@@ -83,10 +83,10 @@
     pop rbp
     ret
     .cfi_endproc
+
   _inter.end:
     .size _inter, .-_inter
 
-.text
     .globl _main
     .type _main, @function
   _main:
@@ -102,6 +102,7 @@
     pop rbp
     ret
     .cfi_endproc
+
   _main.end:
     .size _main, .-_main
 
